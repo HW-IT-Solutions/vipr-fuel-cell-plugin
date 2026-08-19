@@ -33,9 +33,10 @@ pip install -e './vipr-core'
 pip install -e './vipr-fuel-cell-plugin[test]'
 ```
 
-The model files are not versioned. Download or copy the approved checkpoint and
-scalers into `models/operating_state_reconstruction/` as described in
-[`models/README.md`](models/README.md), then verify their checksums.
+The model bundle is stored in `models/operating_state_reconstruction/`. The
+checkpoint is versioned with Git LFS, while the small scaler files are regular
+Git objects. Install Git LFS before cloning or run `git lfs pull` afterwards;
+see [`models/README.md`](models/README.md).
 
 ## Run
 

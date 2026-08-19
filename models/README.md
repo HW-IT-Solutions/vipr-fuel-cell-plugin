@@ -1,7 +1,6 @@
-# Local model files
+# Model files
 
-Model weights and scalers are deliberately not stored in this repository while
-their redistribution terms are being clarified. Place the approved files in:
+The operating-state reconstruction model is stored in:
 
 ```text
 models/operating_state_reconstruction/
@@ -10,22 +9,16 @@ models/operating_state_reconstruction/
 └── scaler_y.json
 ```
 
-If an approved download location becomes available, the files can be installed
-manually without changing the VIPR configuration:
+The checkpoint is managed by Git LFS; the small scaler files are regular Git
+objects. Install Git LFS before cloning the repository. If the repository was
+already cloned, fetch the checkpoint with:
 
 ```bash
-mkdir -p models/operating_state_reconstruction
-
-MODEL_BASE_URL="https://replace-with-approved-download-location"
-wget "$MODEL_BASE_URL/checkpoint.ckpt" \
-  -O models/operating_state_reconstruction/checkpoint.ckpt
-wget "$MODEL_BASE_URL/scaler_x.json" \
-  -O models/operating_state_reconstruction/scaler_x.json
-wget "$MODEL_BASE_URL/scaler_y.json" \
-  -O models/operating_state_reconstruction/scaler_y.json
-
+git lfs install
+git lfs pull
 sha256sum -c models/checksums.sha256
 ```
 
-Do not use the placeholder URL. The expected checksums in `checksums.sha256`
-identify the exact artifacts used for the published reconstruction example.
+The expected checksums in `checksums.sha256` identify the exact artifacts used
+for the published reconstruction example. The redistribution terms of the model
+bundle must be confirmed before the repository is made public.
