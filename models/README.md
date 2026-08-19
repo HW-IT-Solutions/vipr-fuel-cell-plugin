@@ -6,7 +6,6 @@ stored in:
 ```text
 models/test_case_1/
 ├── checkpoint.ckpt
-├── metadata.yaml
 ├── scaler_x.json
 └── scaler_y.json
 ```
@@ -18,10 +17,10 @@ already cloned, fetch the checkpoint with:
 ```bash
 git lfs install
 git lfs pull
-sha256sum -c models/checksums.sha256
 ```
 
-The expected checksums in `checksums.sha256` identify the exact checkpoint and
-scalers used for the published reconstruction example. `metadata.yaml` maps the
-bundle to the paper's eleven-condition Test Case 1. The redistribution terms of
-the model bundle must be confirmed before the repository is made public.
+The plugin verifies all three files against its packaged SHA-256 manifest before
+loading them. Presentation metadata is packaged under
+`vipr_fuel_cell/resources/models/test_case_1/`; tensor names and dimensions come
+from the checkpoint itself. The redistribution terms of the model bundle must
+be confirmed before the repository is made public.

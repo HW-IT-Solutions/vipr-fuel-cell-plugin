@@ -60,38 +60,20 @@ conditions:
     unit: mol/(m² s)
 references:
   - name: J_Cell_A_cm2
-    label: Cell current density
     value: 1.2
-    unit: A/cm²
   - name: RH_In_An_Ist
-    label: Anode inlet relative humidity
     value: 0.8
-    unit: "1"
   - name: RH_In_Cath_Ist
-    label: Cathode inlet relative humidity
     value: 0.75
-    unit: "1"
   - name: T_In_An_Ist
-    label: Anode inlet temperature
     value: 343.15
-    unit: K
   - name: T_In_Cath_Ist
-    label: Cathode inlet temperature
     value: 343.15
-    unit: K
   - name: p_In_An_Ist
-    label: Anode inlet pressure
     value: 2.0
-    unit: atm
   - name: p_In_Cath_Ist
-    label: Cathode inlet pressure
     value: 1.8
-    unit: atm
   - name: Stoech_In_H2_An_Ist
-    label: Hydrogen stoichiometry
     value: 1.3
-    unit: "1"
   - name: Stoech_In_O2_Cath_Ist
-    label: Oxygen stoichiometry
     value: 1.8
-    unit: "1"

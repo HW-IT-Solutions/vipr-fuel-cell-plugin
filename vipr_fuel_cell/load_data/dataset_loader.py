@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+from importlib import resources
 from pathlib import Path
 
 import numpy as np
@@ -12,8 +13,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from vipr.plugins.discovery.decorators import discover_data_loader
 from vipr.plugins.inference.dataset import DataSet
 from vipr.plugins.inference.handlers.data_loader import DataLoaderHandler
+from vipr_fuel_cell.contracts import PEMFCDatasetContext
 from vipr_fuel_cell.paths import resolve_required_file
-from vipr_fuel_cell.resource_catalog import dataset_directory
 
 
 class SignalMetadata(BaseModel):
@@ -29,9 +30,7 @@ class ReferenceMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    label: str
     value: float
-    unit: str
 
 
 class TimeMetadata(BaseModel):
@@ -74,12 +73,12 @@ class PEMFCDatasetLoaderParams(BaseModel):
     )
 
 
-def _load_metadata(path: Path) -> PEMFCDatasetMetadata:
+def _load_metadata(path) -> PEMFCDatasetMetadata:
     parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
     return PEMFCDatasetMetadata.model_validate(parsed)
 
 
-def _load_columns(path: Path) -> dict[str, np.ndarray]:
+def _load_columns(path) -> dict[str, np.ndarray]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         if not reader.fieldnames:
@@ -99,7 +98,19 @@ def _load_columns(path: Path) -> dict[str, np.ndarray]:
     }
 
 
-def _resolve_dataset_files(app, params: PEMFCDatasetLoaderParams) -> tuple[Path, Path]:
+def _bundled_dataset_files(dataset_id: str):
+    root = resources.files("vipr_fuel_cell").joinpath("resources", "datasets")
+    available = sorted(child.name for child in root.iterdir() if child.is_dir())
+    if dataset_id not in available:
+        raise ValueError(
+            f"Unknown built-in PEMFC dataset {dataset_id!r}; "
+            f"available: {', '.join(available)}"
+        )
+    directory = root.joinpath(dataset_id)
+    return directory.joinpath("sensor_data.csv"), directory.joinpath("metadata.yaml")
+
+
+def _resolve_dataset_files(app, params: PEMFCDatasetLoaderParams):
     if params.data_path:
         data_path = resolve_required_file(app, params.data_path, "PEMFC sensor CSV")
         if params.metadata_path:
@@ -115,8 +126,7 @@ def _resolve_dataset_files(app, params: PEMFCDatasetLoaderParams) -> tuple[Path,
                 )
         return data_path, metadata_path
 
-    resource_dir = dataset_directory(params.dataset or "operating_profile")
-    return resource_dir / "sensor_data.csv", resource_dir / "metadata.yaml"
+    return _bundled_dataset_files(params.dataset or "operating_profile")
 
 
 @discover_data_loader("pemfc_dataset", PEMFCDatasetLoaderParams)
@@ -159,42 +169,30 @@ class PEMFCDatasetLoader(DataLoaderHandler):
             reference.name: reference.value
             for reference in metadata_definition.references
         }
-        parameter_labels = {
-            reference.name: reference.label
-            for reference in metadata_definition.references
-        }
-        parameter_units = {
-            reference.name: reference.unit
-            for reference in metadata_definition.references
-        }
-
-        metadata = {
-            "domain": "pemfc",
-            "dataset_id": metadata_definition.id,
-            "dataset_title": metadata_definition.title,
-            "dataset_description": metadata_definition.description,
-            "dataset_source": metadata_definition.source,
-            "source": str(data_path),
-            "metadata_source": str(metadata_path),
-            "condition_names": condition_names,
-            "condition_labels": {
+        metadata = PEMFCDatasetContext(
+            dataset_id=metadata_definition.id,
+            dataset_title=metadata_definition.title,
+            dataset_description=metadata_definition.description,
+            dataset_source=metadata_definition.source,
+            source=str(data_path),
+            metadata_source=str(metadata_path),
+            condition_names=condition_names,
+            condition_labels={
                 condition.name: condition.label
                 for condition in metadata_definition.conditions
             },
-            "condition_units": {
+            condition_units={
                 condition.name: condition.unit
                 for condition in metadata_definition.conditions
             },
-            "time_name": metadata_definition.time.label,
-            "time_unit": metadata_definition.time.unit,
-            "reference_values": references,
-            "parameter_labels": parameter_labels,
-            "parameter_units": parameter_units,
-            "original_time_steps": int(len(time)),
-            "conditions_scaled": False,
-        }
+            time_label=metadata_definition.time.label,
+            time_unit=metadata_definition.time.unit,
+            reference_values=references,
+            original_time_steps=int(len(time)),
+        ).model_dump(mode="python")
+        source_kind = "custom" if params.data_path else "built-in"
         self.app.log.info(
-            f"Loaded built-in PEMFC dataset {metadata_definition.id!r} with "
+            f"Loaded {source_kind} PEMFC dataset {metadata_definition.id!r} with "
             f"{len(time)} time steps and {len(condition_names)} conditions"
         )
         return DataSet(x=conditions, y=time[:, None], metadata=metadata)

@@ -2,8 +2,9 @@
 
 The bundled sensor profile supports the published PEMFC operating-state
 reconstruction example. Its final redistribution terms must be confirmed before
-this repository is made public. Model artifacts are provisioned separately as
-described in the repository's `models/README.md`.
+this repository is made public. Model presentation metadata and checksums are
+packaged under `models/`; the checkpoint and matching scalers are provisioned
+separately as described in the repository's top-level `models/README.md`.
 
 Publication: R. Löser, S. Creutzburg, N. Mothes, and M. Dix, "Conditional
 invertible neural network for online-capable monitoring of polymer electrolyte

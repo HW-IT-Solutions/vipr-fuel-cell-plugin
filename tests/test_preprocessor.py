@@ -7,7 +7,8 @@ from vipr.plugins.inference.dataset import DataSet
 from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
 from vipr_fuel_cell.preprocess.condition_preprocessor import PEMFCConditionPreprocessor
-from tests.helpers import make_app
+from tests.helpers import dataset_metadata, make_app
+from vipr_fuel_cell.contracts import ParameterDescriptor
 
 
 def test_preprocessor_reorders_drops_invalid_and_scales():
@@ -19,13 +20,26 @@ def test_preprocessor_reorders_drops_invalid_and_scales():
         parameter_scaler=MinMaxScaler(np.array([[0.0, 1.0]])),
         condition_names=["a", "b"],
         parameter_names=["p"],
+        parameters={
+            "p": ParameterDescriptor(name="p", id="p", label="P", unit="")
+        },
         device=torch.device("cpu"),
         checkpoint_path="model.ckpt",
     )
     dataset = DataSet(
-        x=np.array([[15.0, 5.0], [np.nan, 6.0], [20.0, 10.0]]),
+        x=np.array(
+            [
+                [15.0, 5.0, 100.0],
+                [np.nan, 6.0, 101.0],
+                [20.0, 10.0, 102.0],
+            ]
+        ),
         y=np.array([[0.0], [1.0], [2.0]]),
-        metadata={"condition_names": ["b", "a"], "conditions_scaled": False},
+        metadata={
+            **dataset_metadata(["b", "a", "unused"]),
+            "original_time_steps": 3,
+            "upstream_extension": {"preserve": True},
+        },
     )
     preprocessor = PEMFCConditionPreprocessor(app)
 
@@ -35,3 +49,7 @@ def test_preprocessor_reorders_drops_invalid_and_scales():
     np.testing.assert_allclose(result.y[:, 0], [0.0, 2.0])
     assert result.metadata["dropped_time_step_indices"] == [1]
     assert result.metadata["conditions_scaled"] is True
+    assert result.metadata["condition_names"] == ["a", "b"]
+    assert set(result.metadata["condition_labels"]) == {"a", "b"}
+    assert set(result.metadata["condition_units"]) == {"a", "b"}
+    assert result.metadata["upstream_extension"] == {"preserve": True}

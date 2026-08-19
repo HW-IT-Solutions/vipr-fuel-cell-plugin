@@ -25,6 +25,9 @@ detection is deliberately outside the initial scope.
 
 Both loaders also accept custom files through `data_path`, `metadata_path`, and
 `checkpoint_path`. Relative custom paths are resolved next to the VIPR config.
+For a named model, the loader owns resolution, checksum validation, checkpoint
+loading, scaler validation, and the consistency check between checkpoint names
+and packaged presentation metadata.
 
 ## Installation
 
@@ -33,10 +36,36 @@ pip install -e './vipr-core'
 pip install -e './vipr-fuel-cell-plugin[test]'
 ```
 
-The paper's Test Case 1 model bundle is stored in `models/test_case_1/`. The
-checkpoint is versioned with Git LFS, while its metadata and small scaler files
-are regular Git objects. Install Git LFS before cloning or run `git lfs pull`
-afterwards; see [`models/README.md`](models/README.md).
+The paper's Test Case 1 artifacts are currently stored in
+`models/test_case_1/`. The checkpoint is versioned with Git LFS, while the small
+scaler files are regular Git objects. Install Git LFS before cloning or run
+`git lfs pull` afterwards; see [`models/README.md`](models/README.md).
+
+An externally provisioned bundle can use the same layout below a configurable
+root directory:
+
+```bash
+export VIPR_FUEL_CELL_ROOT_DIR=/path/to/vipr-fuel-cell-artifacts
+```
+
+```text
+$VIPR_FUEL_CELL_ROOT_DIR/models/test_case_1/
+├── checkpoint.ckpt
+├── scaler_x.json
+└── scaler_y.json
+```
+
+This is the target layout for moving the artifacts to Hugging Face later. The
+repository ID and immutable revision will be added only after the redistribution
+terms and hosting location are confirmed. The packaged metadata and SHA-256
+manifest remain part of the plugin.
+
+When running directly from a source checkout, the loader falls back to the
+repository's `models/` directory. An installed wheel has no implicit model
+location and therefore requires `VIPR_FUEL_CELL_ROOT_DIR` or an explicit
+`checkpoint_path`. The artifact filenames `scaler_x.json` and `scaler_y.json`
+are retained for compatibility with the published bundle; internally they are
+exposed as the parameter and condition scaler.
 
 ## Run
 

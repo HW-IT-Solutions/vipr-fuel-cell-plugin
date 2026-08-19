@@ -10,8 +10,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from vipr.plugins.discovery.decorators import discover_predictor
 from vipr.plugins.inference.handlers.predictor import PredictorHandler
-from vipr_fuel_cell.constants import PARAMETER_LABELS, PARAMETER_UNITS
-from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
+from vipr_fuel_cell.contracts import (
+    PEMFCDatasetContext,
+    PEMFCPosteriorMetadata,
+    PEMFCPosteriorResult,
+    quantile_key,
+)
+from vipr_fuel_cell.load_model.bundle import as_pemfc_bundle
 
 
 class PEMFCPosteriorPredictorParams(BaseModel):
@@ -35,10 +40,6 @@ class PEMFCPosteriorPredictorParams(BaseModel):
         return values
 
 
-def _quantile_key(value: float) -> str:
-    return format(value, ".10g")
-
-
 @discover_predictor("pemfc_posterior", PEMFCPosteriorPredictorParams)
 class PEMFCPosteriorPredictor(PredictorHandler):
     """Reconstruct posterior summaries for all valid sensor time steps."""
@@ -48,9 +49,9 @@ class PEMFCPosteriorPredictor(PredictorHandler):
 
     def _predict(self, dataset, model, params):
         params = PEMFCPosteriorPredictorParams.model_validate(params)
-        if not isinstance(model, PEMFCCINNBundle):
-            raise TypeError("pemfc_posterior requires a model loaded by pemfc_cinn")
-        if not dataset.metadata.get("conditions_scaled"):
+        model = as_pemfc_bundle(model)
+        context = PEMFCDatasetContext.model_validate(dataset.metadata)
+        if not context.conditions_scaled:
             raise ValueError(
                 "PEMFC conditions are not scaled; enable PEMFCConditionPreprocessor"
             )
@@ -67,7 +68,7 @@ class PEMFCPosteriorPredictor(PredictorHandler):
         )
         n_steps = dataset.batch_size
         n_parameters = len(model.parameter_names)
-        quantile_keys = [_quantile_key(value) for value in params.quantiles]
+        quantile_keys = [quantile_key(value) for value in params.quantiles]
         collected = {
             name: {
                 "mean": [],
@@ -156,43 +157,26 @@ class PEMFCPosteriorPredictor(PredictorHandler):
             f"Reconstructed {n_steps} PEMFC time steps with {params.num_samples} "
             f"posterior samples each in {elapsed:.3f} s"
         )
-        return {
-            "prediction_type": "pemfc_cinn_posterior",
-            "time": time.tolist(),
-            "time_name": dataset.metadata.get("time_name", "time"),
-            "time_unit": dataset.metadata.get("time_unit", "index"),
-            "condition_names": list(model.condition_names),
-            "parameter_names": list(model.parameter_names),
-            "parameter_units": {
-                name: dataset.metadata.get("parameter_units", {}).get(
-                    name, PARAMETER_UNITS.get(name, "")
-                )
-                for name in model.parameter_names
-            },
-            "parameter_labels": {
-                name: dataset.metadata.get("parameter_labels", {}).get(
-                    name, PARAMETER_LABELS.get(name, name)
-                )
-                for name in model.parameter_names
-            },
-            "statistics": collected,
-            "reference_values": dict(dataset.metadata.get("reference_values", {})),
-            "metadata": {
-                "dataset_id": dataset.metadata.get("dataset_id"),
-                "dataset_title": dataset.metadata.get("dataset_title"),
-                "dataset_source": dataset.metadata.get("dataset_source", {}),
-                "model_id": model.model_id,
-                "num_samples": params.num_samples,
-                "seed": params.seed,
-                "quantiles": params.quantiles,
-                "common_latent_samples": params.common_latent_samples,
-                "inference_seconds": elapsed,
-                "valid_time_steps": n_steps,
-                "dropped_time_step_indices": dataset.metadata.get(
-                    "dropped_time_step_indices", []
-                ),
-                "out_of_range_value_count": dataset.metadata.get(
-                    "out_of_range_value_count", 0
-                ),
-            },
-        }
+        return PEMFCPosteriorResult(
+            time=time.tolist(),
+            time_label=context.time_label,
+            time_unit=context.time_unit,
+            parameter_names=list(model.parameter_names),
+            parameters=model.parameters,
+            statistics=collected,
+            reference_values=context.reference_values,
+            metadata=PEMFCPosteriorMetadata(
+                dataset_id=context.dataset_id,
+                dataset_title=context.dataset_title,
+                dataset_source=context.dataset_source,
+                model_id=model.model_id,
+                num_samples=params.num_samples,
+                seed=params.seed,
+                quantiles=params.quantiles,
+                common_latent_samples=params.common_latent_samples,
+                inference_seconds=elapsed,
+                valid_time_steps=n_steps,
+                dropped_time_step_indices=context.dropped_time_step_indices,
+                out_of_range_value_count=context.out_of_range_value_count,
+            ),
+        ).as_vipr_payload()

@@ -19,6 +19,10 @@ class MinMaxScaler:
 
     def __post_init__(self):
         values = np.asarray(self.minmax, dtype=np.float32)
+        feature_range = (
+            float(self.feature_range[0]),
+            float(self.feature_range[1]),
+        )
         if values.ndim != 2 or values.shape[1] != 2:
             raise ValueError(
                 f"Scaler minmax must have shape (features, 2), got {values.shape}"
@@ -27,12 +31,14 @@ class MinMaxScaler:
             raise ValueError("Scaler minmax contains non-finite values")
         if np.any(values[:, 1] <= values[:, 0]):
             raise ValueError("Every scaler maximum must be greater than its minimum")
+        if not np.all(np.isfinite(feature_range)):
+            raise ValueError("Scaler feature_range contains non-finite values")
+        if feature_range[1] <= feature_range[0]:
+            raise ValueError(
+                "Scaler feature_range maximum must be greater than its minimum"
+            )
         object.__setattr__(self, "minmax", values)
-        object.__setattr__(
-            self,
-            "feature_range",
-            (float(self.feature_range[0]), float(self.feature_range[1])),
-        )
+        object.__setattr__(self, "feature_range", feature_range)
 
     @property
     def n_features(self) -> int:

@@ -1,0 +1,4 @@
+include models/README.md
+include scripts/prepare_sensor_profile.py
+include tests/__init__.py
+include tests/helpers.py

@@ -9,7 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from vipr.plugins.discovery.decorators import discover_filter
 from vipr.plugins.inference.dataset import DataSet
-from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
+from vipr_fuel_cell.contracts import PEMFCDatasetContext
+from vipr_fuel_cell.load_model.bundle import as_pemfc_bundle
 
 
 class PEMFCConditionPreprocessorParams(BaseModel):
@@ -21,7 +22,7 @@ class PEMFCConditionPreprocessorParams(BaseModel):
 
 
 class PEMFCConditionPreprocessor:
-    """Prepare a MAT condition matrix for the condition set of the loaded model."""
+    """Prepare a sensor-condition matrix for the loaded model."""
 
     def __init__(self, app):
         self.app = app
@@ -33,13 +34,12 @@ class PEMFCConditionPreprocessor:
     )
     def preprocess_conditions(self, data: DataSet, **kwargs) -> DataSet:
         params = PEMFCConditionPreprocessorParams.model_validate(kwargs)
-        bundle = getattr(getattr(self.app, "inference", None), "model", None)
-        if not isinstance(bundle, PEMFCCINNBundle):
-            raise TypeError(
-                "PEMFCConditionPreprocessor requires a PEMFCCINNBundle loaded by pemfc_cinn"
-            )
+        bundle = as_pemfc_bundle(
+            getattr(getattr(self.app, "inference", None), "model", None)
+        )
+        context = PEMFCDatasetContext.model_validate(data.metadata)
 
-        supplied_names = list(data.metadata.get("condition_names", []))
+        supplied_names = context.condition_names
         if len(supplied_names) != data.x.shape[1]:
             raise ValueError(
                 "DataSet condition_names metadata does not match the condition matrix"
@@ -94,12 +94,24 @@ class PEMFCConditionPreprocessor:
                 self.app.log.warning(message)
 
         scaled = bundle.condition_scaler.transform_numpy(raw_conditions)
-        metadata = {
-            **data.metadata,
-            "condition_names": list(bundle.condition_names),
-            "conditions_scaled": True,
-            "valid_time_steps": int(len(scaled)),
-            "dropped_time_step_indices": invalid_indices,
-            "out_of_range_value_count": out_of_range_count,
-        }
+        selected_names = list(bundle.condition_names)
+        metadata_payload = context.model_dump(mode="python")
+        metadata_payload.update(
+            {
+                "condition_names": selected_names,
+                "condition_labels": {
+                    name: context.condition_labels[name] for name in selected_names
+                },
+                "condition_units": {
+                    name: context.condition_units[name] for name in selected_names
+                },
+                "conditions_scaled": True,
+                "valid_time_steps": int(len(scaled)),
+                "dropped_time_step_indices": invalid_indices,
+                "out_of_range_value_count": out_of_range_count,
+            }
+        )
+        metadata = PEMFCDatasetContext.model_validate(metadata_payload).model_dump(
+            mode="python"
+        )
         return data.copy_with_updates(x=scaled, y=time, metadata=metadata)

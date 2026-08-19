@@ -18,11 +18,8 @@ def test_built_in_dataset_loads_sensor_profile_and_english_metadata():
     assert dataset.x.shape == (301, 11)
     assert dataset.y.shape == (301, 1)
     assert dataset.metadata["dataset_id"] == "operating_profile"
-    assert dataset.metadata["time_name"] == "Time"
+    assert dataset.metadata["time_label"] == "Time"
     assert dataset.metadata["reference_values"]["T_In_An_Ist"] == 343.15
-    assert (
-        dataset.metadata["parameter_labels"]["T_In_An_Ist"] == "Anode inlet temperature"
-    )
 
 
 def test_custom_dataset_resolves_csv_and_metadata_next_to_config(tmp_path):
@@ -45,8 +42,12 @@ conditions:
         encoding="utf-8",
     )
 
-    dataset = _loader(config_path)._load_data(data_path="sensor.csv")
+    loader = _loader(config_path)
+    messages = []
+    loader.app.log.info = messages.append
+    dataset = loader._load_data(data_path="sensor.csv")
 
     np.testing.assert_allclose(dataset.x[:, 0], [0.7, 0.6])
     np.testing.assert_allclose(dataset.y[:, 0], [0.0, 0.1])
     assert dataset.metadata["condition_names"] == ["U_cell_V"]
+    assert messages[-1].startswith("Loaded custom PEMFC dataset")
