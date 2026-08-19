@@ -23,9 +23,7 @@ class PEMFCCINNModelLoaderParams(BaseModel):
 
     model: str | None = Field(
         default=None,
-        description=(
-            "Local model identifier; defaults to operating_state_reconstruction"
-        ),
+        description="Local model identifier; defaults to test_case_1",
     )
     checkpoint_path: str | None = Field(
         default=None,
@@ -81,7 +79,7 @@ def _resolve_model_files(
         raise ValueError(
             "scaler_x_path and scaler_y_path are only valid with checkpoint_path"
         )
-    resource_dir = model_directory(params.model or "operating_state_reconstruction")
+    resource_dir = model_directory(params.model or "test_case_1")
     return (
         resource_dir / "checkpoint.ckpt",
         resource_dir / "scaler_x.json",
@@ -161,6 +159,6 @@ class PEMFCCINNModelLoader(ModelLoaderHandler):
             model_id=(
                 None
                 if params.checkpoint_path
-                else params.model or "operating_state_reconstruction"
+                else params.model or "test_case_1"
             ),
         )

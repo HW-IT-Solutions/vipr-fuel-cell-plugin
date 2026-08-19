@@ -18,7 +18,7 @@ vipr:
     load_model:
       handler: pemfc_cinn
       parameters:
-        model: operating_state_reconstruction
+        model: test_case_1
         device: cpu
     preprocess:
       handler: ""

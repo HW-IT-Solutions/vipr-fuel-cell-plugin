@@ -1,0 +1,28 @@
+schema_version: 1
+id: test_case_1
+title: PEMFC cINN - Test Case 1
+description: >-
+  Published cINN model conditioned on the eleven voltage-, loss-, current-
+  density-, water-flux-, and reactant-flux-related quantities defined as Test
+  Case 1 in the accompanying PEMFC monitoring study.
+publication:
+  title: Conditional invertible neural network for online-capable monitoring of polymer electrolyte membrane fuel cells
+  doi: https://doi.org/10.1016/j.ijhydene.2026.155929
+  test_case: Test Case 1
+conditioning:
+  dimension: 11
+  names:
+    - U_cell_V
+    - E_Con
+    - E_Ohm
+    - E_Cross
+    - E_act
+    - Imax_An_fit
+    - Imax_Kath_fit
+    - N_flux_H2O_th_An
+    - N_flux_H2O_th_Kath
+    - N_flux_H2_th_An
+    - N_flux_O2_th_Kath
+targets:
+  dimension: 9
+  description: PEMFC operating parameters reconstructed from the conditioning quantities

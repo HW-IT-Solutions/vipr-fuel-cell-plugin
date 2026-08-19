@@ -1,1 +1,1 @@
-models/operating_state_reconstruction/checkpoint.ckpt filter=lfs diff=lfs merge=lfs -text
+models/test_case_1/checkpoint.ckpt filter=lfs diff=lfs merge=lfs -text

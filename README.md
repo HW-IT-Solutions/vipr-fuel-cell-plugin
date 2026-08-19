@@ -33,10 +33,10 @@ pip install -e './vipr-core'
 pip install -e './vipr-fuel-cell-plugin[test]'
 ```
 
-The model bundle is stored in `models/operating_state_reconstruction/`. The
-checkpoint is versioned with Git LFS, while the small scaler files are regular
-Git objects. Install Git LFS before cloning or run `git lfs pull` afterwards;
-see [`models/README.md`](models/README.md).
+The paper's Test Case 1 model bundle is stored in `models/test_case_1/`. The
+checkpoint is versioned with Git LFS, while its metadata and small scaler files
+are regular Git objects. Install Git LFS before cloning or run `git lfs pull`
+afterwards; see [`models/README.md`](models/README.md).
 
 ## Run
 
@@ -50,4 +50,13 @@ vipr --config \
 ```
 
 The built-in dataset is selected as `operating_profile`, and the direct model
-loader selects the local cINN as `operating_state_reconstruction`.
+loader selects the paper's eleven-condition cINN as `test_case_1`.
+
+## License
+
+The source code is licensed under the GNU Lesser General Public License v3.0 or
+later (`LGPL-3.0-or-later`); see [`LICENSE.txt`](LICENSE.txt). The project
+authors are listed in [`AUTHORS.md`](AUTHORS.md).
+
+The trained model and bundled research data may be subject to additional rights
+and approvals described in [`NOTICE.md`](NOTICE.md).

@@ -35,19 +35,9 @@ logs/
 *.h5
 *.hdf5
 *.ckpt
+!/models/test_case_1/checkpoint.ckpt
 *.pt
 *.pth
-
-# Only the documented operating-state model bundle is versioned. Its checkpoint
-# is stored through Git LFS; the small scaler files remain regular Git objects.
-/models/*
-!/models/README.md
-!/models/checksums.sha256
-!/models/operating_state_reconstruction/
-/models/operating_state_reconstruction/*
-!/models/operating_state_reconstruction/checkpoint.ckpt
-!/models/operating_state_reconstruction/scaler_x.json
-!/models/operating_state_reconstruction/scaler_y.json
 
 # Celery runtime files
 celerybeat-schedule*

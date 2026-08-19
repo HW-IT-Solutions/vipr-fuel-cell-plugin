@@ -15,7 +15,7 @@ from tests.helpers import make_app
 def test_built_in_model_alias_resolves_packaged_artifacts():
     checkpoint, scaler_x, scaler_y = _resolve_model_files(
         make_app(),
-        PEMFCCINNModelLoaderParams(model="operating_state_reconstruction"),
+        PEMFCCINNModelLoaderParams(model="test_case_1"),
     )
 
     assert checkpoint.name == "checkpoint.ckpt"
