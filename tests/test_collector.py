@@ -24,6 +24,7 @@ def test_collector_builds_table_and_parameter_diagram():
         "time_unit": "s",
         "condition_names": ["U_cell_V"],
         "parameter_names": ["T_In_An_Ist"],
+        "parameter_labels": {"T_In_An_Ist": "Anode inlet temperature"},
         "parameter_units": {"T_In_An_Ist": "K"},
         "statistics": {
             "T_In_An_Ist": {
@@ -46,7 +47,12 @@ def test_collector_builds_table_and_parameter_diagram():
 
     item = app.datacollector.data.items[0]
     assert item.tables[0].key_column == "parameter"
+    assert item.tables[0].data[0]["parameter"] == "Anode inlet temperature"
+    assert item.tables[0].data[0]["parameter_id"] == "anode_inlet_temperature"
     assert item.tables[0].data[0]["reference"] == 343.15
+    assert item.diagrams[0].title == "Anode inlet temperature"
+    assert item.diagrams[0].id == "pemfc_anode_inlet_temperature"
     assert item.diagrams[0].data["posterior_mean"] == [340.0, 341.0]
     assert len(item.diagrams[0].series) == 4
+    assert item.diagrams[0].series[-1].label == "Reference"
     assert app.datacollector.data.batch_metadata["domain"] == "pemfc"

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from vipr.plugins.discovery.decorators import discover_predictor
 from vipr.plugins.inference.handlers.predictor import PredictorHandler
-from vipr_fuel_cell.constants import PARAMETER_UNITS
+from vipr_fuel_cell.constants import PARAMETER_LABELS, PARAMETER_UNITS
 from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
 
 
@@ -41,7 +41,7 @@ def _quantile_key(value: float) -> str:
 
 @discover_predictor("pemfc_posterior", PEMFCPosteriorPredictorParams)
 class PEMFCPosteriorPredictor(PredictorHandler):
-    """Reconstruct posterior summaries for all valid MAT time steps."""
+    """Reconstruct posterior summaries for all valid sensor time steps."""
 
     class Meta:
         label = "pemfc_posterior"
@@ -164,13 +164,24 @@ class PEMFCPosteriorPredictor(PredictorHandler):
             "condition_names": list(model.condition_names),
             "parameter_names": list(model.parameter_names),
             "parameter_units": {
-                name: PARAMETER_UNITS.get(name, "") for name in model.parameter_names
+                name: dataset.metadata.get("parameter_units", {}).get(
+                    name, PARAMETER_UNITS.get(name, "")
+                )
+                for name in model.parameter_names
+            },
+            "parameter_labels": {
+                name: dataset.metadata.get("parameter_labels", {}).get(
+                    name, PARAMETER_LABELS.get(name, name)
+                )
+                for name in model.parameter_names
             },
             "statistics": collected,
             "reference_values": dict(dataset.metadata.get("reference_values", {})),
             "metadata": {
-                "source": dataset.metadata.get("source"),
-                "checkpoint_path": model.checkpoint_path,
+                "dataset_id": dataset.metadata.get("dataset_id"),
+                "dataset_title": dataset.metadata.get("dataset_title"),
+                "dataset_source": dataset.metadata.get("dataset_source", {}),
+                "model_id": model.model_id,
                 "num_samples": params.num_samples,
                 "seed": params.seed,
                 "quantiles": params.quantiles,

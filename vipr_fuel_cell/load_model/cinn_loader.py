@@ -13,6 +13,7 @@ from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
 from vipr_fuel_cell.load_model.model import PEMFCCINN
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
 from vipr_fuel_cell.paths import resolve_required_file
+from vipr_fuel_cell.resource_catalog import model_directory
 
 
 class PEMFCCINNModelLoaderParams(BaseModel):
@@ -20,7 +21,16 @@ class PEMFCCINNModelLoaderParams(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    checkpoint_path: str = Field(description="Lightning-style cINN checkpoint")
+    model: str | None = Field(
+        default=None,
+        description=(
+            "Local model identifier; defaults to operating_state_reconstruction"
+        ),
+    )
+    checkpoint_path: str | None = Field(
+        default=None,
+        description="Optional custom Lightning-style cINN checkpoint",
+    )
     scaler_x_path: str | None = Field(
         default=None,
         description="Operating-parameter scaler; inferred from run directory when omitted",
@@ -45,6 +55,40 @@ def _select_device(requested: str) -> torch.device:
     return device
 
 
+def _resolve_model_files(
+    app, params: PEMFCCINNModelLoaderParams
+) -> tuple[Path, Path, Path]:
+    if params.model and params.checkpoint_path:
+        raise ValueError("Configure either model or checkpoint_path, not both")
+
+    if params.checkpoint_path:
+        checkpoint_path = resolve_required_file(
+            app, params.checkpoint_path, "PEMFC cINN checkpoint"
+        )
+        scaler_x_path = (
+            resolve_required_file(app, params.scaler_x_path, "PEMFC parameter scaler")
+            if params.scaler_x_path
+            else _default_scaler_path(checkpoint_path, "scaler_x.json")
+        )
+        scaler_y_path = (
+            resolve_required_file(app, params.scaler_y_path, "PEMFC condition scaler")
+            if params.scaler_y_path
+            else _default_scaler_path(checkpoint_path, "scaler_y.json")
+        )
+        return checkpoint_path, scaler_x_path, scaler_y_path
+
+    if params.scaler_x_path or params.scaler_y_path:
+        raise ValueError(
+            "scaler_x_path and scaler_y_path are only valid with checkpoint_path"
+        )
+    resource_dir = model_directory(params.model or "operating_state_reconstruction")
+    return (
+        resource_dir / "checkpoint.ckpt",
+        resource_dir / "scaler_x.json",
+        resource_dir / "scaler_y.json",
+    )
+
+
 @discover_model_loader("pemfc_cinn", PEMFCCINNModelLoaderParams)
 class PEMFCCINNModelLoader(ModelLoaderHandler):
     """Load the cINN, condition scaler and parameter scaler without a registry."""
@@ -54,32 +98,24 @@ class PEMFCCINNModelLoader(ModelLoaderHandler):
 
     def _load_model(self, **kwargs) -> PEMFCCINNBundle:
         params = PEMFCCINNModelLoaderParams.model_validate(kwargs)
-        checkpoint_path = resolve_required_file(
-            self.app, params.checkpoint_path, "PEMFC cINN checkpoint"
+        checkpoint_path, scaler_x_path, scaler_y_path = _resolve_model_files(
+            self.app, params
         )
-        if params.scaler_x_path:
-            scaler_x_path = resolve_required_file(
-                self.app, params.scaler_x_path, "PEMFC parameter scaler"
-            )
-        else:
-            scaler_x_path = _default_scaler_path(checkpoint_path, "scaler_x.json")
-        if params.scaler_y_path:
-            scaler_y_path = resolve_required_file(
-                self.app, params.scaler_y_path, "PEMFC condition scaler"
-            )
-        else:
-            scaler_y_path = _default_scaler_path(checkpoint_path, "scaler_y.json")
         for label, path in (
+            ("checkpoint", checkpoint_path),
             ("parameter scaler", scaler_x_path),
             ("condition scaler", scaler_y_path),
         ):
             if not path.is_file():
-                raise FileNotFoundError(f"PEMFC {label} not found: {path}")
+                raise FileNotFoundError(
+                    f"PEMFC {label} not found: {path}. See models/README.md for "
+                    "the expected local model layout and download instructions."
+                )
 
         device = _select_device(params.device)
-        # weights_only avoids arbitrary object deserialization. The Lightning
-        # checkpoint used by the acceptance tests consists of tensors and basic
-        # containers and is compatible with this safe mode.
+        # weights_only avoids arbitrary object deserialization. The published
+        # checkpoint consists of tensors and basic containers and is compatible
+        # with this safe mode.
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
         hyperparams = checkpoint.get("hyper_parameters", checkpoint.get("hparams", {}))
         parameter_names = list(hyperparams.get("input_names", []))
@@ -122,4 +158,9 @@ class PEMFCCINNModelLoader(ModelLoaderHandler):
             parameter_names=parameter_names,
             device=device,
             checkpoint_path=str(checkpoint_path),
+            model_id=(
+                None
+                if params.checkpoint_path
+                else params.model or "operating_state_reconstruction"
+            ),
         )

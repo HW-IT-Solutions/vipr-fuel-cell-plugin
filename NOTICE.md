@@ -1,7 +1,7 @@
 # Model and data notice
 
-The plugin source code does not include the HZwo-DigiTwin checkpoints, JSON
-scalers, MATLAB acceptance files, or INI reference files. These artifacts are
-referenced by the local example configurations solely to exercise the existing
-development workspace. Their copyright and redistribution terms must be
-confirmed before publishing or bundling them with a release.
+The source code is licensed as declared in `pyproject.toml`. The trained cINN
+checkpoint and scalers are not versioned or distributed with this repository.
+Their redistribution terms must be confirmed before an approved download is
+published. The bundled PEMFC sensor profile is a separate research artifact;
+its redistribution terms must likewise be confirmed before publication.

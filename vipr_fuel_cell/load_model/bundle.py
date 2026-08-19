@@ -17,3 +17,4 @@ class PEMFCCINNBundle:
     parameter_names: list[str]
     device: torch.device
     checkpoint_path: str
+    model_id: str | None = None

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from vipr_fuel_cell.constants import PARAMETER_IDS
+
 
 class PEMFCDataCollector:
     """Create one result item containing parameter summaries and trajectories."""
@@ -32,6 +34,7 @@ class PEMFCDataCollector:
         time = prediction["time"]
         statistics = prediction["statistics"]
         units = prediction.get("parameter_units", {})
+        labels = prediction.get("parameter_labels", {})
         references = prediction.get("reference_values", {})
         configured_quantiles = prediction.get("metadata", {}).get("quantiles", [])
         lower_key = (
@@ -47,10 +50,13 @@ class PEMFCDataCollector:
             key_column="parameter",
         )
         for name in prediction["parameter_names"]:
+            label = labels.get(name, name)
+            parameter_id = PARAMETER_IDS.get(name, name)
             values = np.asarray(statistics[name]["mean"], dtype=float)
             posterior_std = np.asarray(statistics[name]["std"], dtype=float)
             table.add_row(
-                parameter=name,
+                parameter=label,
+                parameter_id=parameter_id,
                 unit=units.get(name, ""),
                 mean=float(np.mean(values)),
                 minimum=float(np.min(values)),
@@ -60,7 +66,7 @@ class PEMFCDataCollector:
             )
 
             diagram = (
-                collector.diagram(f"pemfc_{name}", name)
+                collector.diagram(f"pemfc_{parameter_id}", label)
                 .set_data("time", time)
                 .set_data("posterior_mean", statistics[name]["mean"])
                 .add_series(
@@ -85,10 +91,10 @@ class PEMFCDataCollector:
             if name in references:
                 diagram = diagram.set_data(
                     "reference", [references[name]] * len(time)
-                ).add_series("time", "reference", label="INI reference", kind="line")
+                ).add_series("time", "reference", label="Reference", kind="line")
             diagram.set_metadata(
                 x_label=f"{prediction.get('time_name', 'time')} [{prediction.get('time_unit', '')}]",
-                y_label=f"{name} [{units.get(name, '')}]",
+                y_label=f"{label} [{units.get(name, '')}]",
                 lower_quantile=lower_key,
                 upper_quantile=upper_key,
             )

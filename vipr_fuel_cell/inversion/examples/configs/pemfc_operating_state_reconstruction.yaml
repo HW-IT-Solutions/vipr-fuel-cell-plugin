@@ -1,0 +1,37 @@
+# Uncertainty-aware reconstruction of PEMFC operating parameters from a
+# bundled sensor profile. No external paths or model registry are required.
+vipr:
+  inference:
+    filters:
+      INFERENCE_PREPROCESS_PRE_FILTER:
+        - class: vipr_fuel_cell.preprocess.condition_preprocessor.PEMFCConditionPreprocessor
+          method: preprocess_conditions
+          enabled: true
+          weight: 0
+          parameters:
+            invalid_rows: drop
+            out_of_range: warn
+    load_data:
+      handler: pemfc_dataset
+      parameters:
+        dataset: operating_profile
+    load_model:
+      handler: pemfc_cinn
+      parameters:
+        model: operating_state_reconstruction
+        device: cpu
+    preprocess:
+      handler: ""
+      parameters: {}
+    prediction:
+      handler: pemfc_posterior
+      parameters:
+        num_samples: 1000
+        seed: 42
+        quantiles: [0.025, 0.5, 0.975]
+        time_batch_size: 8
+        common_latent_samples: true
+    postprocess:
+      handler: ""
+      parameters: {}
+  result_id: pemfc-operating-state-reconstruction

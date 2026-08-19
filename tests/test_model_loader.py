@@ -3,9 +3,25 @@ import json
 import numpy as np
 import torch
 
-from vipr_fuel_cell.load_model.cinn_loader import PEMFCCINNModelLoader
+from vipr_fuel_cell.load_model.cinn_loader import (
+    PEMFCCINNModelLoader,
+    PEMFCCINNModelLoaderParams,
+    _resolve_model_files,
+)
 from vipr_fuel_cell.load_model.model import PEMFCCINN
 from tests.helpers import make_app
+
+
+def test_built_in_model_alias_resolves_packaged_artifacts():
+    checkpoint, scaler_x, scaler_y = _resolve_model_files(
+        make_app(),
+        PEMFCCINNModelLoaderParams(model="operating_state_reconstruction"),
+    )
+
+    assert checkpoint.name == "checkpoint.ckpt"
+    assert checkpoint.is_file()
+    assert scaler_x.name == "scaler_x.json"
+    assert scaler_y.name == "scaler_y.json"
 
 
 def test_direct_model_loader_reconstructs_checkpoint_and_scalers(tmp_path):

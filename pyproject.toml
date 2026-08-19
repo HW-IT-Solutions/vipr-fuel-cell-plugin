@@ -25,13 +25,14 @@ classifiers = [
 dependencies = [
     "vipr>=1.0.0,<2.0.0",
     "FrEIA==0.2",
-    "h5py>=3.9",
     "numpy>=1.26",
+    "PyYAML>=6.0",
     "torch>=2.1",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=8.0.0"]
+conversion = ["h5py>=3.9"]
 
 [project.entry-points."vipr.plugins"]
 fuel_cell = "vipr_fuel_cell:load"
@@ -45,7 +46,12 @@ include = ["vipr_fuel_cell*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-vipr_fuel_cell = ["examples/configs/*.yaml"]
+vipr_fuel_cell = [
+    "inversion/examples/configs/*.yaml",
+    "resources/README.md",
+    "resources/datasets/*/*.csv",
+    "resources/datasets/*/*.yaml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

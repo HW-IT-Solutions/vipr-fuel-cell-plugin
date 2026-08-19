@@ -1,5 +1,5 @@
 """PEMFC data loaders."""
 
-from .mat_loader import PEMFCMatDataLoader
+from .dataset_loader import PEMFCDatasetLoader
 
-__all__ = ["PEMFCMatDataLoader"]
+__all__ = ["PEMFCDatasetLoader"]

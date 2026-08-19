@@ -30,9 +30,11 @@ logs/
 
 # Local measurement and model artifacts
 # These are referenced externally until their redistribution terms are clear.
-data/
-models/
-checkpoints/
+/data/
+/models/*
+!/models/README.md
+!/models/checksums.sha256
+/checkpoints/
 *.mat
 *.h5
 *.hdf5
