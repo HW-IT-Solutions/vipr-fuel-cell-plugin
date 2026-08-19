@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vipr-fuel-cell"
+version = "0.1.0"
+description = "VIPR plugin for uncertainty-aware inversion of PEMFC operating parameters"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "LGPL-3.0-or-later"}
+authors = [
+    {name = "Sascha Creutzburg", email = "sascha.creutzburg@saxony.ai"},
+    {name = "Nico Mothes", email = "nico.mothes@saxony.ai"},
+    {name = "Rico Löser", email = "Rico.Loeser@iwu.fraunhofer.de"},
+]
+keywords = ["vipr", "pemfc", "fuel-cell", "inverse-problems", "cinn"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "vipr>=1.0.0,<2.0.0",
+    "FrEIA==0.2",
+    "h5py>=3.9",
+    "numpy>=1.26",
+    "torch>=2.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0.0"]
+
+[project.entry-points."vipr.plugins"]
+fuel_cell = "vipr_fuel_cell:load"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vipr_fuel_cell*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+vipr_fuel_cell = ["examples/configs/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"

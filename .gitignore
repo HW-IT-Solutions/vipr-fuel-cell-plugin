@@ -1,0 +1,53 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Test and coverage output
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Packaging output
+*.egg-info/
+build/
+dist/
+
+# VIPR runtime output
+storage/
+results/
+logs/
+*.log
+
+# Local measurement and model artifacts
+# These are referenced externally until their redistribution terms are clear.
+data/
+models/
+checkpoints/
+*.mat
+*.h5
+*.hdf5
+*.ckpt
+*.pt
+*.pth
+
+# Celery runtime files
+celerybeat-schedule*
+celerybeat.pid
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

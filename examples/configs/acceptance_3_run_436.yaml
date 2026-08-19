@@ -1,0 +1,40 @@
+# Reduced-sensor acceptance scenario using the four-condition cINN.
+vipr:
+  inference:
+    filters:
+      INFERENCE_PREPROCESS_PRE_FILTER:
+        - class: vipr_fuel_cell.preprocess.condition_preprocessor.PEMFCConditionPreprocessor
+          method: preprocess_conditions
+          enabled: true
+          weight: 0
+          parameters:
+            invalid_rows: drop
+            out_of_range: warn
+    load_data:
+      handler: pemfc_mat
+      parameters:
+        data_path: ../../../../saxonyai/iwu-datenmodellierung-digitale-zwilllinge-brennstoffzelle/data/acceptance_sample/Abnahmebsp3_conv.mat
+        reference_path: ../../../../saxonyai/iwu-datenmodellierung-digitale-zwilllinge-brennstoffzelle/data/acceptance_sample/INI3.txt
+        condition_names: [U_cell_V, E_Con, E_Ohm, E_act]
+    load_model:
+      handler: pemfc_cinn
+      parameters:
+        checkpoint_path: ../../../../saxonyai/iwu-datenmodellierung-digitale-zwilllinge-brennstoffzelle/data/models/cinn/run_436/checkpoints/last.ckpt
+        scaler_x_path: ../../../../saxonyai/iwu-datenmodellierung-digitale-zwilllinge-brennstoffzelle/data/models/cinn/run_436/scalers/scaler_x.json
+        scaler_y_path: ../../../../saxonyai/iwu-datenmodellierung-digitale-zwilllinge-brennstoffzelle/data/models/cinn/run_436/scalers/scaler_y.json
+        device: cpu
+    preprocess:
+      handler: ''
+      parameters: {}
+    prediction:
+      handler: pemfc_posterior
+      parameters:
+        num_samples: 1000
+        seed: 42
+        quantiles: [0.025, 0.5, 0.975]
+        time_batch_size: 8
+        common_latent_samples: true
+    postprocess:
+      handler: ''
+      parameters: {}
+  result_id: pemfc-acceptance-3-run-436
