@@ -3,119 +3,21 @@
 from __future__ import annotations
 
 import os
-import re
 from hashlib import sha256
 from pathlib import Path
 
 import torch
-import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from vipr_fuel_cell.contracts import ParameterDescriptor
 from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
 from vipr_fuel_cell.load_model.cinn_network import PEMFCCINN
+from vipr_fuel_cell.load_model.manifest import (
+    PEMFCModelManifest,
+    VariableDescriptor,
+)
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
 
 FUEL_CELL_ROOT_ENV_VAR = "VIPR_FUEL_CELL_ROOT_DIR"
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
-_SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
-
-
-class PublicationMetadata(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    title: str
-    doi: str
-    test_case: str
-
-
-class ArtifactDescriptor(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    filename: str
-    sha256: str
-
-    @field_validator("filename")
-    @classmethod
-    def validate_filename(cls, value: str) -> str:
-        if not value or Path(value).name != value or value in {".", ".."}:
-            raise ValueError("artifact filename must be a basename")
-        return value
-
-    @field_validator("sha256")
-    @classmethod
-    def validate_sha256(cls, value: str) -> str:
-        if not _SHA256.fullmatch(value):
-            raise ValueError("artifact sha256 must contain 64 hexadecimal characters")
-        return value.lower()
-
-
-class ModelArtifacts(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    checkpoint: ArtifactDescriptor
-    parameter_scaler: ArtifactDescriptor
-    condition_scaler: ArtifactDescriptor
-
-    @model_validator(mode="after")
-    def validate_unique_filenames(self):
-        filenames = [
-            self.checkpoint.filename,
-            self.parameter_scaler.filename,
-            self.condition_scaler.filename,
-        ]
-        if len(set(filenames)) != len(filenames):
-            raise ValueError("model artifact filenames must be unique")
-        return self
-
-
-class PEMFCModelManifest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    schema_version: int = 1
-    id: str
-    title: str
-    description: str
-    publication: PublicationMetadata
-    conditions: list[ParameterDescriptor] = Field(min_length=1)
-    targets: list[ParameterDescriptor] = Field(min_length=1)
-    artifacts: ModelArtifacts
-
-    @field_validator("id")
-    @classmethod
-    def validate_id(cls, value: str) -> str:
-        if not _SAFE_ID.fullmatch(value):
-            raise ValueError(
-                "model id must contain lowercase letters, digits, underscores, "
-                "or hyphens and must start with a letter or digit"
-            )
-        return value
-
-    @model_validator(mode="after")
-    def validate_descriptors(self):
-        for label, descriptors in (
-            ("condition", self.conditions),
-            ("target", self.targets),
-        ):
-            names = [descriptor.name for descriptor in descriptors]
-            ids = [descriptor.id for descriptor in descriptors]
-            if len(set(names)) != len(names):
-                raise ValueError(f"model manifest has duplicate {label} names")
-            if len(set(ids)) != len(ids):
-                raise ValueError(f"model manifest has duplicate {label} ids")
-            invalid_ids = sorted(value for value in ids if not _SAFE_ID.fullmatch(value))
-            if invalid_ids:
-                raise ValueError(
-                    f"model manifest has invalid {label} ids: {invalid_ids}"
-                )
-        return self
-
-
-def load_model_manifest(path: Path) -> PEMFCModelManifest:
-    """Load and validate the complete semantic and artifact model contract."""
-    parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return PEMFCModelManifest.model_validate(parsed)
 
 
 def resolve_artifact_directory(model_id: str) -> Path:
@@ -175,9 +77,9 @@ def verify_artifacts(
 def _descriptor_map(
     *,
     checkpoint_names: list[str],
-    descriptors: list[ParameterDescriptor],
+    descriptors: list[VariableDescriptor],
     label: str,
-) -> dict[str, ParameterDescriptor]:
+) -> dict[str, VariableDescriptor]:
     by_name = {descriptor.name: descriptor for descriptor in descriptors}
     missing = sorted(set(checkpoint_names) - by_name.keys())
     extra = sorted(by_name.keys() - set(checkpoint_names))

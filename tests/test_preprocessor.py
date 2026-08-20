@@ -8,7 +8,7 @@ from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
 from vipr_fuel_cell.preprocess.condition_preprocessor import PEMFCConditionPreprocessor
 from tests.helpers import dataset_metadata, make_app
-from vipr_fuel_cell.contracts import ParameterDescriptor
+from vipr_fuel_cell.load_model.manifest import VariableDescriptor
 
 
 def test_preprocessor_reorders_drops_invalid_and_scales():
@@ -19,11 +19,11 @@ def test_preprocessor_reorders_drops_invalid_and_scales():
         condition_scaler=condition_scaler,
         parameter_scaler=MinMaxScaler(np.array([[0.0, 1.0]])),
         conditions={
-            "a": ParameterDescriptor(name="a", id="signal_a", label="A", unit=""),
-            "b": ParameterDescriptor(name="b", id="signal_b", label="B", unit=""),
+            "a": VariableDescriptor(name="a", id="signal_a", label="A", unit=""),
+            "b": VariableDescriptor(name="b", id="signal_b", label="B", unit=""),
         },
         parameters={
-            "p": ParameterDescriptor(name="p", id="p", label="P", unit="")
+            "p": VariableDescriptor(name="p", id="p", label="P", unit="")
         },
         device=torch.device("cpu"),
         model_id="test_model",

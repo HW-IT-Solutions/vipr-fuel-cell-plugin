@@ -10,8 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from vipr.plugins.discovery.decorators import discover_predictor
 from vipr.plugins.inference.handlers.predictor import PredictorHandler
-from vipr_fuel_cell.contracts import (
-    PEMFCDatasetContext,
+from vipr_fuel_cell.load_data.dataset_context import PEMFCDatasetContext
+from vipr_fuel_cell.predict.posterior_result import (
     PEMFCPosteriorMetadata,
     PEMFCPosteriorResult,
     quantile_key,

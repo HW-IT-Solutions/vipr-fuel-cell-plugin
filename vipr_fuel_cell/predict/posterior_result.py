@@ -1,55 +1,16 @@
-"""Typed contracts at the VIPR boundaries of the PEMFC workflow."""
-
-from __future__ import annotations
+"""Validated posterior result produced by PEMFC inversion."""
 
 from math import isclose, isfinite
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from vipr_fuel_cell.load_model.manifest import VariableDescriptor
+
 
 def quantile_key(value: float) -> str:
     """Return the stable dictionary key used for a posterior quantile."""
     return format(value, ".10g")
-
-
-class ParameterDescriptor(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    name: str
-    id: str
-    label: str
-    unit: str
-
-
-class PEMFCDatasetContext(BaseModel):
-    """Lightweight metadata passed alongside the condition matrix."""
-
-    # DataSet metadata is an extension boundary shared with other filters.
-    # Preserve unknown keys instead of making this plugin own the entire map.
-    model_config = ConfigDict(extra="allow")
-
-    domain: Literal["pemfc"] = "pemfc"
-    dataset_id: str
-    dataset_title: str
-    dataset_description: str
-    dataset_source: dict[str, str] = Field(default_factory=dict)
-    source: str
-    profile_source: str
-    condition_ids: list[str]
-    time_label: str
-    time_unit: str
-    original_time_steps: int = Field(ge=1)
-    conditions_scaled: bool = False
-    valid_time_steps: int | None = None
-    dropped_time_step_indices: list[int] = Field(default_factory=list)
-    out_of_range_value_count: int = 0
-
-    @model_validator(mode="after")
-    def validate_condition_ids(self):
-        if len(set(self.condition_ids)) != len(self.condition_ids):
-            raise ValueError("condition_ids must be unique")
-        return self
 
 
 class PosteriorParameterStatistics(BaseModel):
@@ -141,7 +102,7 @@ class PEMFCPosteriorResult(BaseModel):
     time_label: str
     time_unit: str
     parameter_names: list[str]
-    parameters: dict[str, ParameterDescriptor]
+    parameters: dict[str, VariableDescriptor]
     statistics: dict[str, PosteriorParameterStatistics]
     snapshots: list[PosteriorSnapshot] = Field(default_factory=list)
     metadata: PEMFCPosteriorMetadata
@@ -178,11 +139,14 @@ class PEMFCPosteriorResult(BaseModel):
                 },
             }
             invalid = [
-                label for label, values in series.items() if len(values) != expected_length
+                label
+                for label, values in series.items()
+                if len(values) != expected_length
             ]
             if invalid:
                 raise ValueError(
-                    f"Posterior series for {name!r} do not match the time axis: {invalid}"
+                    f"Posterior series for {name!r} do not match the time axis: "
+                    f"{invalid}"
                 )
 
         snapshot_indices = [
@@ -202,11 +166,13 @@ class PEMFCPosteriorResult(BaseModel):
                 )
             if not isclose(snapshot.time, self.time[index], rel_tol=0.0, abs_tol=1e-12):
                 raise ValueError(
-                    f"Posterior snapshot time at index {index} does not match the time axis"
+                    f"Posterior snapshot time at index {index} does not match "
+                    "the time axis"
                 )
             if set(snapshot.histograms) != names:
                 raise ValueError(
-                    f"Posterior snapshot at index {index} must cover parameter_names exactly"
+                    f"Posterior snapshot at index {index} must cover "
+                    "parameter_names exactly"
                 )
             for name, histogram in snapshot.histograms.items():
                 if len(histogram.density) != self.metadata.histogram_bins:

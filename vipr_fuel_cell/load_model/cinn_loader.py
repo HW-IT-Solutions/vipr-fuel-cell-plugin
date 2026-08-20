@@ -9,10 +9,10 @@ from vipr.plugins.discovery.decorators import discover_model_loader
 from vipr.plugins.inference.handlers.model_loader import ModelLoaderHandler
 from vipr_fuel_cell.load_model.artifacts import (
     load_model_bundle,
-    load_model_manifest,
     resolve_artifact_directory,
 )
 from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
+from vipr_fuel_cell.load_model.manifest import load_model_manifest
 from vipr_fuel_cell.paths import resolve_required_directory, resolve_required_file
 
 

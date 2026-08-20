@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from vipr.plugins.discovery.decorators import discover_data_loader
 from vipr.plugins.inference.dataset import DataSet
 from vipr.plugins.inference.handlers.data_loader import DataLoaderHandler
-from vipr_fuel_cell.contracts import PEMFCDatasetContext
+from vipr_fuel_cell.load_data.dataset_context import PEMFCDatasetContext
 from vipr_fuel_cell.paths import resolve_required_file
 
 

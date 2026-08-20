@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import numpy as np
 
-from vipr_fuel_cell.contracts import PEMFCPosteriorResult, PosteriorSnapshot
 from vipr_fuel_cell.postprocess.plot_scripts.posterior_snapshot import (
     make_plot as make_posterior_snapshot_plot,
+)
+from vipr_fuel_cell.predict.posterior_result import (
+    PEMFCPosteriorResult,
+    PosteriorSnapshot,
 )
 
 

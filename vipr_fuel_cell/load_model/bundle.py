@@ -4,9 +4,8 @@ from dataclasses import dataclass
 
 import torch
 
-from vipr_fuel_cell.contracts import ParameterDescriptor
-
 from .cinn_network import PEMFCCINN
+from .manifest import VariableDescriptor
 from .scaler import MinMaxScaler
 
 
@@ -15,8 +14,8 @@ class PEMFCCINNBundle:
     model: PEMFCCINN
     condition_scaler: MinMaxScaler
     parameter_scaler: MinMaxScaler
-    conditions: dict[str, ParameterDescriptor]
-    parameters: dict[str, ParameterDescriptor]
+    conditions: dict[str, VariableDescriptor]
+    parameters: dict[str, VariableDescriptor]
     device: torch.device
     model_id: str
 

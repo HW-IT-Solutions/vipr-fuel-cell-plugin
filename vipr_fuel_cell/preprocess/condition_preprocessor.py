@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from vipr.plugins.discovery.decorators import discover_filter
 from vipr.plugins.inference.dataset import DataSet
-from vipr_fuel_cell.contracts import PEMFCDatasetContext
+from vipr_fuel_cell.load_data.dataset_context import PEMFCDatasetContext
 from vipr_fuel_cell.load_model.bundle import as_pemfc_bundle
 
 

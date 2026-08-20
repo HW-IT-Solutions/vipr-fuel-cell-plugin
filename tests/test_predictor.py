@@ -10,7 +10,8 @@ from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
 from vipr_fuel_cell.predict.posterior_predictor import PEMFCPosteriorPredictor
 from tests.helpers import dataset_metadata, make_app
-from vipr_fuel_cell.contracts import PEMFCPosteriorResult, ParameterDescriptor
+from vipr_fuel_cell.load_model.manifest import VariableDescriptor
+from vipr_fuel_cell.predict.posterior_result import PEMFCPosteriorResult
 
 
 class FakeInverseModel:
@@ -27,11 +28,11 @@ def test_predictor_returns_time_aligned_posterior_statistics():
         condition_scaler=MinMaxScaler(np.array([[0.0, 1.0], [0.0, 1.0]])),
         parameter_scaler=MinMaxScaler(np.array([[0.0, 10.0], [100.0, 200.0]])),
         conditions={
-            name: ParameterDescriptor(name=name, id=name, label=name, unit="")
+            name: VariableDescriptor(name=name, id=name, label=name, unit="")
             for name in ("c1", "c2")
         },
         parameters={
-            name: ParameterDescriptor(name=name, id=name, label=name, unit="")
+            name: VariableDescriptor(name=name, id=name, label=name, unit="")
             for name in ("p1", "p2")
         },
         device=torch.device("cpu"),
@@ -90,11 +91,11 @@ def test_common_latent_samples_preserve_condition_shift():
         condition_scaler=MinMaxScaler(np.array([[0.0, 1.0], [0.0, 1.0]])),
         parameter_scaler=MinMaxScaler(np.array([[0.0, 1.0], [0.0, 1.0]])),
         conditions={
-            name: ParameterDescriptor(name=name, id=name, label=name, unit="")
+            name: VariableDescriptor(name=name, id=name, label=name, unit="")
             for name in ("c1", "c2")
         },
         parameters={
-            name: ParameterDescriptor(name=name, id=name, label=name, unit="")
+            name: VariableDescriptor(name=name, id=name, label=name, unit="")
             for name in ("p1", "p2")
         },
         device=torch.device("cpu"),

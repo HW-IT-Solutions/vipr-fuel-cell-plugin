@@ -10,9 +10,12 @@ from pydantic import ValidationError
 
 from tests.helpers import make_app
 from vipr_fuel_cell.load_model import artifacts
-from vipr_fuel_cell.load_model.artifacts import PEMFCModelManifest
 from vipr_fuel_cell.load_model.cinn_loader import PEMFCCINNModelLoader
 from vipr_fuel_cell.load_model.cinn_network import PEMFCCINN
+from vipr_fuel_cell.load_model.manifest import (
+    PEMFCModelManifest,
+    load_model_manifest,
+)
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
 
 
@@ -118,7 +121,7 @@ def test_packaged_model_manifest_defines_complete_contract():
         Path(__file__).parents[1]
         / "vipr_fuel_cell/resources/models/test_case_1/model.yaml"
     )
-    manifest = artifacts.load_model_manifest(path)
+    manifest = load_model_manifest(path)
 
     assert manifest.id == "test_case_1"
     assert len(manifest.conditions) == 11
