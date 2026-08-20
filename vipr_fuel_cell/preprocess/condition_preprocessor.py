@@ -39,10 +39,10 @@ class PEMFCConditionPreprocessor:
         )
         context = PEMFCDatasetContext.model_validate(data.metadata)
 
-        supplied_ids = context.signal_ids
+        supplied_ids = context.condition_ids
         if len(supplied_ids) != data.x.shape[1]:
             raise ValueError(
-                "DataSet signal_ids metadata does not match the signal matrix"
+                "DataSet condition_ids metadata does not match the condition matrix"
             )
         ordered_descriptors = [
             bundle.conditions[name] for name in bundle.condition_names
@@ -104,7 +104,7 @@ class PEMFCConditionPreprocessor:
         metadata_payload = context.model_dump(mode="python")
         metadata_payload.update(
             {
-                "signal_ids": selected_ids,
+                "condition_ids": selected_ids,
                 "conditions_scaled": True,
                 "valid_time_steps": int(len(scaled)),
                 "dropped_time_step_indices": invalid_indices,

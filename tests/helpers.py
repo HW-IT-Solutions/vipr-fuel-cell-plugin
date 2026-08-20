@@ -19,7 +19,9 @@ class NullLog:
         pass
 
 
-def dataset_metadata(signal_ids: list[str], *, conditions_scaled: bool = False) -> dict:
+def dataset_metadata(
+    condition_ids: list[str], *, conditions_scaled: bool = False
+) -> dict:
     return {
         "domain": "pemfc",
         "dataset_id": "test_profile",
@@ -28,7 +30,7 @@ def dataset_metadata(signal_ids: list[str], *, conditions_scaled: bool = False) 
         "dataset_source": {},
         "source": "sensor.csv",
         "profile_source": "profile.yaml",
-        "signal_ids": signal_ids,
+        "condition_ids": condition_ids,
         "time_label": "Time",
         "time_unit": "s",
         "original_time_steps": 2,

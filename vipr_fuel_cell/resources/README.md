@@ -4,7 +4,7 @@ The bundled sensor profile supports the published PEMFC operating-state
 reconstruction example. Its final redistribution terms must be confirmed before
 this repository is made public.
 
-- `datasets/operating_profile/profile.yaml` maps stable signal IDs to columns
+- `datasets/operating_profile/profile.yaml` maps stable condition IDs to columns
   in the adjacent `sensor_data.csv` and describes the profile and time axis.
 - `models/test_case_1/model.yaml` defines the cINN conditions and targets as
   well as the filenames and SHA-256 hashes of its external artifacts.

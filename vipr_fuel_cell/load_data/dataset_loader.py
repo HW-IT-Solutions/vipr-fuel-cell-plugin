@@ -16,7 +16,7 @@ from vipr_fuel_cell.contracts import PEMFCDatasetContext
 from vipr_fuel_cell.paths import resolve_required_file
 
 
-class ProfileColumn(BaseModel):
+class ConditionMapping(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
@@ -40,14 +40,14 @@ class PEMFCDatasetProfile(BaseModel):
     description: str
     source: dict[str, str] = Field(default_factory=dict)
     time: TimeMetadata = Field(default_factory=TimeMetadata)
-    columns: list[ProfileColumn] = Field(min_length=1)
+    conditions: list[ConditionMapping] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_columns(self):
-        ids = [item.id for item in self.columns]
-        columns = [item.column for item in self.columns]
+    def validate_conditions(self):
+        ids = [item.id for item in self.conditions]
+        columns = [item.column for item in self.conditions]
         if len(set(ids)) != len(ids):
-            raise ValueError("profile column ids must be unique")
+            raise ValueError("profile condition ids must be unique")
         if len(set(columns)) != len(columns):
             raise ValueError("profile CSV columns must be unique")
         return self
@@ -91,9 +91,34 @@ def _read_numeric_columns(path: Path) -> dict[str, np.ndarray]:
     }
 
 
+def _build_condition_matrix(
+    profile: PEMFCDatasetProfile,
+    csv_columns: dict[str, np.ndarray],
+) -> tuple[list[str], np.ndarray]:
+    """Map profile condition IDs to CSV columns in profile-defined order."""
+    condition_ids: list[str] = []
+    condition_columns: list[np.ndarray] = []
+    missing: list[str] = []
+    for item in profile.conditions:
+        condition_ids.append(item.id)
+        if item.column not in csv_columns:
+            missing.append(item.column)
+        else:
+            condition_columns.append(csv_columns[item.column])
+
+    if missing:
+        raise ValueError(
+            f"PEMFC sensor CSV is missing condition columns {missing}; "
+            f"available: {sorted(csv_columns)}"
+        )
+
+    matrix = np.column_stack(condition_columns)
+    return condition_ids, matrix
+
+
 @discover_data_loader("pemfc_dataset", PEMFCDatasetLoaderParams)
 class PEMFCDatasetLoader(DataLoaderHandler):
-    """Load a PEMFC sensor profile and its stable signal identifiers."""
+    """Load a PEMFC sensor profile and its stable condition identifiers."""
 
     class Meta:
         label = "pemfc_dataset"
@@ -108,21 +133,14 @@ class PEMFCDatasetLoader(DataLoaderHandler):
         )
         profile = _read_profile(profile_path)
         columns = _read_numeric_columns(data_path)
-        required_columns = [profile.time.column] + [
-            item.column for item in profile.columns
-        ]
-        missing = [name for name in required_columns if name not in columns]
-        if missing:
+        if profile.time.column not in columns:
             raise ValueError(
-                f"PEMFC sensor CSV is missing profile columns {missing}; "
+                f"PEMFC sensor CSV is missing time column {profile.time.column!r}; "
                 f"available: {sorted(columns)}"
             )
 
-        signal_ids = [item.id for item in profile.columns]
-        conditions = np.column_stack(
-            [columns[item.column] for item in profile.columns]
-        )
         time = columns[profile.time.column]
+        condition_ids, conditions = _build_condition_matrix(profile, columns)
         metadata = PEMFCDatasetContext(
             dataset_id=profile.id,
             dataset_title=profile.title,
@@ -130,13 +148,13 @@ class PEMFCDatasetLoader(DataLoaderHandler):
             dataset_source=profile.source,
             source=str(data_path),
             profile_source=str(profile_path),
-            signal_ids=signal_ids,
+            condition_ids=condition_ids,
             time_label=profile.time.label,
             time_unit=profile.time.unit,
             original_time_steps=int(len(time)),
         ).model_dump(mode="python")
         self.app.log.info(
             f"Loaded PEMFC dataset {profile.id!r} from {data_path} with "
-            f"{len(time)} time steps and {len(signal_ids)} signals"
+            f"{len(time)} time steps and {len(condition_ids)} conditions"
         )
         return DataSet(x=conditions, y=time[:, None], metadata=metadata)

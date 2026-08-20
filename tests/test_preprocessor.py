@@ -53,5 +53,5 @@ def test_preprocessor_reorders_drops_invalid_and_scales():
     np.testing.assert_allclose(result.y[:, 0], [0.0, 2.0])
     assert result.metadata["dropped_time_step_indices"] == [1]
     assert result.metadata["conditions_scaled"] is True
-    assert result.metadata["signal_ids"] == ["signal_a", "signal_b"]
+    assert result.metadata["condition_ids"] == ["signal_a", "signal_b"]
     assert result.metadata["upstream_extension"] == {"preserve": True}

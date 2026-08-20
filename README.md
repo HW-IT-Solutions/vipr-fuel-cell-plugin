@@ -65,7 +65,7 @@ simulated operating-profile change:
 ## Components
 
 - `pemfc_dataset` loads a PEMFC sensor profile from CSV and maps its columns to
-  stable signal IDs through a profile YAML file.
+  stable condition IDs through a profile YAML file.
 - `pemfc_cinn` loads a model manifest and the locally provisioned checkpoint
   and min/max scalers. The manifest defines the model's conditioning and target
   quantities, artifact filenames, and SHA-256 hashes. No VIPR registry loader
@@ -85,7 +85,7 @@ that all condition and target names match the checkpoint.
 Metadata has one owner at each layer: the checkpoint defines tensor names and
 their order; `model.yaml` assigns stable IDs, labels, and units to all model
 conditions and targets; `profile.yaml` contains only profile provenance, its
-time axis, and the mapping from signal IDs to CSV columns.
+time axis, and the mapping from condition IDs to CSV columns.
 
 ## Installation
 
@@ -180,7 +180,7 @@ conditions for the loaded cINN. Both `data_path` and `profile_path` are
 required. In the profile, each `column` identifies a CSV column and its `id`
 identifies the corresponding condition from the model manifest. The order is
 arbitrary, but all eleven condition IDs required by `test_case_1` must be
-present; additional signals are ignored by its preprocessor.
+present; additional conditions are ignored by its preprocessor.
 
 For example, a profile mapping starts as follows:
 
@@ -190,7 +190,7 @@ id: my_profile
 title: My operating profile
 description: Sensor data for a custom operating profile
 time: {column: time_s, label: Time, unit: s}
-columns:
+conditions:
   - {id: cell_voltage, column: measured_cell_voltage_V}
   - {id: concentration_loss, column: calculated_concentration_loss_V}
 ```

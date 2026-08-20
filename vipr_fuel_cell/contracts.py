@@ -36,7 +36,7 @@ class PEMFCDatasetContext(BaseModel):
     dataset_source: dict[str, str] = Field(default_factory=dict)
     source: str
     profile_source: str
-    signal_ids: list[str]
+    condition_ids: list[str]
     time_label: str
     time_unit: str
     original_time_steps: int = Field(ge=1)
@@ -46,9 +46,9 @@ class PEMFCDatasetContext(BaseModel):
     out_of_range_value_count: int = 0
 
     @model_validator(mode="after")
-    def validate_signal_ids(self):
-        if len(set(self.signal_ids)) != len(self.signal_ids):
-            raise ValueError("signal_ids must be unique")
+    def validate_condition_ids(self):
+        if len(set(self.condition_ids)) != len(self.condition_ids):
+            raise ValueError("condition_ids must be unique")
         return self
 
 

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from tests.helpers import make_app
 from vipr_fuel_cell.load_data.dataset_loader import PEMFCDatasetLoader
@@ -10,6 +11,21 @@ def _loader(config_path: Path | None = None) -> PEMFCDatasetLoader:
     loader = object.__new__(PEMFCDatasetLoader)
     loader.app = make_app(config_path)
     return loader
+
+
+def _write_profile(directory: Path) -> None:
+    (directory / "profile.yaml").write_text(
+        """\
+schema_version: 1
+id: custom_profile
+title: Custom profile
+description: Test data
+time: {column: time_s, label: Time, unit: s}
+conditions:
+  - {id: cell_voltage, column: cell_voltage_V}
+""",
+        encoding="utf-8",
+    )
 
 
 def test_packaged_dataset_loads_through_explicit_resource_paths():
@@ -36,18 +52,7 @@ def test_custom_dataset_resolves_files_next_to_config(tmp_path):
         "time_s,cell_voltage_V\n0.0,0.7\n0.1,0.6\n",
         encoding="utf-8",
     )
-    (tmp_path / "profile.yaml").write_text(
-        """\
-schema_version: 1
-id: custom_profile
-title: Custom profile
-description: Test data
-time: {column: time_s, label: Time, unit: s}
-columns:
-  - {id: cell_voltage, column: cell_voltage_V}
-""",
-        encoding="utf-8",
-    )
+    _write_profile(tmp_path)
 
     loader = _loader(config_path)
     messages = []
@@ -59,5 +64,33 @@ columns:
 
     np.testing.assert_allclose(dataset.x[:, 0], [0.7, 0.6])
     np.testing.assert_allclose(dataset.y[:, 0], [0.0, 0.1])
-    assert dataset.metadata["signal_ids"] == ["cell_voltage"]
+    assert dataset.metadata["condition_ids"] == ["cell_voltage"]
     assert messages[-1].startswith("Loaded PEMFC dataset 'custom_profile' from")
+
+
+def test_dataset_loader_reports_missing_time_column(tmp_path):
+    (tmp_path / "sensor.csv").write_text(
+        "cell_voltage_V\n0.7\n",
+        encoding="utf-8",
+    )
+    _write_profile(tmp_path)
+
+    with pytest.raises(ValueError, match="missing time column 'time_s'"):
+        _loader(tmp_path / "config.yaml")._load_data(
+            data_path="sensor.csv",
+            profile_path="profile.yaml",
+        )
+
+
+def test_dataset_loader_reports_missing_condition_column(tmp_path):
+    (tmp_path / "sensor.csv").write_text(
+        "time_s\n0.0\n",
+        encoding="utf-8",
+    )
+    _write_profile(tmp_path)
+
+    with pytest.raises(ValueError, match="missing condition columns"):
+        _loader(tmp_path / "config.yaml")._load_data(
+            data_path="sensor.csv",
+            profile_path="profile.yaml",
+        )
