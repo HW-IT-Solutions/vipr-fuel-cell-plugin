@@ -4,11 +4,47 @@ from __future__ import annotations
 
 import numpy as np
 
-from vipr_fuel_cell.contracts import PEMFCPosteriorResult, quantile_key
+from vipr_fuel_cell.contracts import PEMFCPosteriorResult, PosteriorSnapshot
+from vipr_fuel_cell.postprocess.plot_scripts.posterior_snapshot import (
+    make_plot as make_posterior_snapshot_plot,
+)
+
+
+def _posterior_snapshot_plot_data(
+    prediction: PEMFCPosteriorResult,
+    snapshot: PosteriorSnapshot,
+) -> dict[str, np.ndarray]:
+    """Return portable arrays consumed by the standalone snapshot plotter."""
+    names = prediction.parameter_names
+    return {
+        "bin_edges": np.asarray(
+            [snapshot.histograms[name].bin_edges for name in names], dtype=float
+        ),
+        "densities": np.asarray(
+            [snapshot.histograms[name].density for name in names], dtype=float
+        ),
+        "posterior_means": np.asarray(
+            [
+                prediction.statistics[name].mean[snapshot.valid_time_step_index]
+                for name in names
+            ],
+            dtype=float,
+        ),
+        "parameter_labels": np.asarray(
+            [prediction.parameters[name].label for name in names]
+        ),
+        "parameter_units": np.asarray(
+            [prediction.parameters[name].unit for name in names]
+        ),
+        "valid_time_step_index": np.asarray([snapshot.valid_time_step_index]),
+        "time_value": np.asarray([snapshot.time]),
+        "time_label": np.asarray([prediction.time_label]),
+        "time_unit": np.asarray([prediction.time_unit]),
+    }
 
 
 class PEMFCDataCollector:
-    """Create one result item containing parameter summaries and trajectories."""
+    """Create one result item with trajectories and posterior snapshots."""
 
     def __init__(self, app):
         self.app = app
@@ -34,14 +70,6 @@ class PEMFCDataCollector:
         collector = app.datacollector.create_item_collector(0)
         time = prediction.time
         statistics = prediction.statistics
-        references = prediction.reference_values
-        configured_quantiles = prediction.metadata.quantiles
-        lower_key = (
-            quantile_key(min(configured_quantiles)) if configured_quantiles else None
-        )
-        upper_key = (
-            quantile_key(max(configured_quantiles)) if configured_quantiles else None
-        )
 
         table = collector.table(
             "pemfc_parameter_summary",
@@ -63,7 +91,6 @@ class PEMFCDataCollector:
                 minimum=float(np.min(values)),
                 maximum=float(np.max(values)),
                 mean_posterior_std=float(np.mean(posterior_std)),
-                reference=references.get(name),
             )
 
             diagram = (
@@ -74,29 +101,69 @@ class PEMFCDataCollector:
                     "time", "posterior_mean", label="Posterior mean", kind="line"
                 )
             )
-            if lower_key is not None:
-                diagram = diagram.set_data(
-                    "posterior_lower", parameter_statistics.quantiles[lower_key]
-                ).add_series(
-                    "time", "posterior_lower", label=f"q={lower_key}", kind="line"
-                )
-            if upper_key is not None and upper_key != lower_key:
-                diagram = (
-                    diagram.set_data("posterior_upper", parameter_statistics.quantiles[upper_key])
-                    .add_series(
-                        "time", "posterior_upper", label=f"q={upper_key}", kind="line"
-                    )
-                )
-            if name in references:
-                diagram = diagram.set_data(
-                    "reference", [references[name]] * len(time)
-                ).add_series("time", "reference", label="Reference", kind="line")
             diagram.set_metadata(
                 x_label=f"{prediction.time_label} [{prediction.time_unit}]",
                 y_label=f"{label} [{descriptor.unit}]",
-                lower_quantile=lower_key,
-                upper_quantile=upper_key,
             )
+
+        if prediction.snapshots:
+            histogram_table = collector.table(
+                "pemfc_posterior_snapshot_histograms",
+                "Empirical posterior histogram data",
+            )
+            for snapshot in prediction.snapshots:
+                plot_data = _posterior_snapshot_plot_data(prediction, snapshot)
+                figure = make_posterior_snapshot_plot(**plot_data)
+                image_id = (
+                    "pemfc_posterior_distributions_"
+                    f"step_{snapshot.valid_time_step_index}"
+                )
+                try:
+                    (
+                        collector.image(
+                            image_id,
+                            "PEMFC posterior distributions at "
+                            f"valid time-step {snapshot.valid_time_step_index}",
+                        )
+                        .set_plot_script(
+                            make_posterior_snapshot_plot,
+                            data_format="npz",
+                        )
+                        .set_plot_data(**plot_data)
+                        .set_from_matplotlib(figure, format="svg")
+                        .set_metadata(
+                            valid_time_step_index=snapshot.valid_time_step_index,
+                            time=snapshot.time,
+                            time_label=prediction.time_label,
+                            time_unit=prediction.time_unit,
+                            distribution="empirical_histogram",
+                        )
+                    )
+                finally:
+                    import matplotlib.pyplot as plt
+
+                    plt.close(figure)
+
+                for name in prediction.parameter_names:
+                    descriptor = prediction.parameters[name]
+                    histogram = snapshot.histograms[name]
+                    mean = prediction.statistics[name].mean[
+                        snapshot.valid_time_step_index
+                    ]
+                    for bin_index, density in enumerate(histogram.density):
+                        histogram_table.add_row(
+                            valid_time_step_index=snapshot.valid_time_step_index,
+                            time=snapshot.time,
+                            time_unit=prediction.time_unit,
+                            parameter=descriptor.label,
+                            parameter_id=descriptor.id,
+                            unit=descriptor.unit,
+                            bin_left=histogram.bin_edges[bin_index],
+                            bin_right=histogram.bin_edges[bin_index + 1],
+                            density=density,
+                            count=histogram.counts[bin_index],
+                            posterior_mean=mean,
+                        )
 
         app.datacollector.data.batch_metadata.update(
             {
@@ -106,5 +173,6 @@ class PEMFCDataCollector:
             }
         )
         app.log.info(
-            f"Stored PEMFC posterior table and {len(prediction.parameter_names)} diagrams"
+            f"Stored PEMFC posterior table, {len(prediction.parameter_names)} "
+            f"mean diagrams and {len(prediction.snapshots)} posterior snapshot image(s)"
         )

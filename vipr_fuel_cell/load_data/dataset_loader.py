@@ -26,13 +26,6 @@ class SignalMetadata(BaseModel):
     unit: str
 
 
-class ReferenceMetadata(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    name: str
-    value: float
-
-
 class TimeMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -51,7 +44,6 @@ class PEMFCDatasetMetadata(BaseModel):
     source: dict[str, str] = Field(default_factory=dict)
     time: TimeMetadata = Field(default_factory=TimeMetadata)
     conditions: list[SignalMetadata]
-    references: list[ReferenceMetadata] = Field(default_factory=list)
 
 
 class PEMFCDatasetLoaderParams(BaseModel):
@@ -165,10 +157,6 @@ class PEMFCDatasetLoader(DataLoaderHandler):
             [columns[condition.column] for condition in metadata_definition.conditions]
         )
         time = columns[metadata_definition.time.column]
-        references = {
-            reference.name: reference.value
-            for reference in metadata_definition.references
-        }
         metadata = PEMFCDatasetContext(
             dataset_id=metadata_definition.id,
             dataset_title=metadata_definition.title,
@@ -187,7 +175,6 @@ class PEMFCDatasetLoader(DataLoaderHandler):
             },
             time_label=metadata_definition.time.label,
             time_unit=metadata_definition.time.unit,
-            reference_values=references,
             original_time_steps=int(len(time)),
         ).model_dump(mode="python")
         source_kind = "custom" if params.data_path else "built-in"

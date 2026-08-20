@@ -31,6 +31,10 @@ vipr:
         quantiles: [0.025, 0.5, 0.975]
         time_batch_size: 8
         common_latent_samples: true
+        # One illustrative stable operating point before the pressure change.
+        # The index is zero-based on the valid, preprocessed time axis.
+        posterior_snapshot_indices: [40]
+        histogram_bins: 30
     postprocess:
       handler: ""
       parameters: {}

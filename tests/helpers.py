@@ -35,7 +35,6 @@ def dataset_metadata(
         "condition_units": {name: "" for name in condition_names},
         "time_label": "Time",
         "time_unit": "s",
-        "reference_values": {},
         "original_time_steps": 2,
         "conditions_scaled": conditions_scaled,
     }

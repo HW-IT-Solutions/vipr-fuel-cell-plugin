@@ -58,22 +58,3 @@ conditions:
     column: cathode_oxygen_flux_mol_m2_s
     label: Cathode oxygen flux
     unit: mol/(m² s)
-references:
-  - name: J_Cell_A_cm2
-    value: 1.2
-  - name: RH_In_An_Ist
-    value: 0.8
-  - name: RH_In_Cath_Ist
-    value: 0.75
-  - name: T_In_An_Ist
-    value: 343.15
-  - name: T_In_Cath_Ist
-    value: 343.15
-  - name: p_In_An_Ist
-    value: 2.0
-  - name: p_In_Cath_Ist
-    value: 1.8
-  - name: Stoech_In_H2_An_Ist
-    value: 1.3
-  - name: Stoech_In_O2_Cath_Ist
-    value: 1.8

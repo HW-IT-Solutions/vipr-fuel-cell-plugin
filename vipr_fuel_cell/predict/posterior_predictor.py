@@ -30,6 +30,14 @@ class PEMFCPosteriorPredictorParams(BaseModel):
         default=True,
         description="Reuse latent draws across time steps for stable trajectory comparisons",
     )
+    posterior_snapshot_indices: list[int] = Field(
+        default_factory=list,
+        description=(
+            "Zero-based indices on the valid, preprocessed time axis for which "
+            "empirical marginal posterior histograms are retained"
+        ),
+    )
+    histogram_bins: int = Field(default=30, ge=5, le=200)
 
     @field_validator("quantiles")
     @classmethod
@@ -38,6 +46,14 @@ class PEMFCPosteriorPredictorParams(BaseModel):
         if not values or any(value < 0.0 or value > 1.0 for value in values):
             raise ValueError("quantiles must contain unique values in [0, 1]")
         return values
+
+    @field_validator("posterior_snapshot_indices")
+    @classmethod
+    def validate_snapshot_indices(cls, values: list[int]) -> list[int]:
+        normalized = sorted(set(int(value) for value in values))
+        if any(value < 0 for value in normalized):
+            raise ValueError("posterior_snapshot_indices must be non-negative")
+        return normalized
 
 
 @discover_predictor("pemfc_posterior", PEMFCPosteriorPredictorParams)
@@ -68,6 +84,16 @@ class PEMFCPosteriorPredictor(PredictorHandler):
         )
         n_steps = dataset.batch_size
         n_parameters = len(model.parameter_names)
+        invalid_snapshot_indices = [
+            index
+            for index in params.posterior_snapshot_indices
+            if index >= n_steps
+        ]
+        if invalid_snapshot_indices:
+            raise ValueError(
+                "posterior_snapshot_indices are outside the valid, preprocessed "
+                f"time axis of length {n_steps}: {invalid_snapshot_indices}"
+            )
         quantile_keys = [quantile_key(value) for value in params.quantiles]
         collected = {
             name: {
@@ -79,6 +105,7 @@ class PEMFCPosteriorPredictor(PredictorHandler):
             }
             for name in model.parameter_names
         }
+        snapshots: dict[int, dict] = {}
 
         generator = torch.Generator(device=model.device)
         generator.manual_seed(params.seed)
@@ -141,6 +168,36 @@ class PEMFCPosteriorPredictor(PredictorHandler):
                     dim=1,
                 )
 
+                requested_in_chunk = [
+                    index
+                    for index in params.posterior_snapshot_indices
+                    if start <= index < stop
+                ]
+                if requested_in_chunk:
+                    snapshot_samples = samples.detach().cpu().numpy()
+                    for index in requested_in_chunk:
+                        local_index = index - start
+                        histograms = {}
+                        for parameter_index, name in enumerate(model.parameter_names):
+                            counts, bin_edges = np.histogram(
+                                snapshot_samples[local_index, :, parameter_index],
+                                bins=params.histogram_bins,
+                            )
+                            bin_widths = np.diff(bin_edges)
+                            density = counts.astype(np.float64) / (
+                                counts.sum() * bin_widths
+                            )
+                            histograms[name] = {
+                                "bin_edges": bin_edges.tolist(),
+                                "density": density.tolist(),
+                                "counts": counts.tolist(),
+                            }
+                        snapshots[index] = {
+                            "valid_time_step_index": index,
+                            "time": float(time[index]),
+                            "histograms": histograms,
+                        }
+
                 for parameter_index, name in enumerate(model.parameter_names):
                     entry = collected[name]
                     entry["mean"].extend(means[:, parameter_index].cpu().tolist())
@@ -164,7 +221,9 @@ class PEMFCPosteriorPredictor(PredictorHandler):
             parameter_names=list(model.parameter_names),
             parameters=model.parameters,
             statistics=collected,
-            reference_values=context.reference_values,
+            snapshots=[
+                snapshots[index] for index in params.posterior_snapshot_indices
+            ],
             metadata=PEMFCPosteriorMetadata(
                 dataset_id=context.dataset_id,
                 dataset_title=context.dataset_title,
@@ -174,6 +233,8 @@ class PEMFCPosteriorPredictor(PredictorHandler):
                 seed=params.seed,
                 quantiles=params.quantiles,
                 common_latent_samples=params.common_latent_samples,
+                histogram_bins=params.histogram_bins,
+                posterior_snapshot_indices=params.posterior_snapshot_indices,
                 inference_seconds=elapsed,
                 valid_time_steps=n_steps,
                 dropped_time_step_indices=context.dropped_time_step_indices,

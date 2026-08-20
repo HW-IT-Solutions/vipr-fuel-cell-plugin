@@ -21,7 +21,8 @@ detection is deliberately outside the initial scope.
   scalers. No VIPR registry loader is used.
 - `PEMFCConditionPreprocessor` selects, validates and scales model conditions.
 - `pemfc_posterior` samples and summarizes the conditional posterior.
-- `PEMFCDataCollector` exports parameter summaries and time-series diagrams.
+- `PEMFCDataCollector` exports parameter summaries, mean trajectories, and
+  configured empirical posterior snapshots.
 
 Both loaders also accept custom files through `data_path`, `metadata_path`, and
 `checkpoint_path`. Relative custom paths are resolved next to the VIPR config.
@@ -80,6 +81,26 @@ vipr --config \
 
 The built-in dataset is selected as `operating_profile`, and the direct model
 loader selects the paper's eleven-condition cINN as `test_case_1`.
+
+The example reconstructs all 300 valid sensor-profile steps. Its diagrams show
+only the posterior mean over time; no uncertainty band, anomaly threshold, or
+ground-truth series is implied. In addition, the configuration retains the
+empirical marginal posteriors at valid time-step index 40 (`t = 4.1 s`), a
+stable operating point before the pressure change. This produces:
+
+- nine mean-trajectory diagrams with their CSV data;
+- one SVG containing a 3 x 3 grid of empirical posterior histograms and their
+  posterior means; and
+- one CSV/TXT table containing the histogram bins, densities, counts, and
+  posterior means used for that SVG.
+
+VIPR also writes
+`scripts/plot_pemfc_posterior_distributions_step_40.py` and its adjacent NPZ
+data file into the result directory. The standalone script reproduces the SVG
+without loading the model or requiring a VIPR installation.
+
+The snapshot index is zero-based on the valid, preprocessed time axis. The
+histograms visualize the sampled posterior directly; no Gaussian fit is used.
 
 ## License
 

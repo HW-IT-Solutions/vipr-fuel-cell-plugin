@@ -38,7 +38,6 @@ def test_predictor_returns_time_aligned_posterior_statistics():
         metadata={
             **dataset_metadata(["c1", "c2"], conditions_scaled=True),
             "time_label": "tout",
-            "reference_values": {"p1": 4.0},
         },
     )
     predictor = object.__new__(PEMFCPosteriorPredictor)
@@ -52,6 +51,8 @@ def test_predictor_returns_time_aligned_posterior_statistics():
             "seed": 7,
             "quantiles": [0.1, 0.5, 0.9],
             "time_batch_size": 1,
+            "posterior_snapshot_indices": [0],
+            "histogram_bins": 5,
         },
     )
 
@@ -59,7 +60,23 @@ def test_predictor_returns_time_aligned_posterior_statistics():
     assert result["time"] == [0.0, 0.1]
     assert len(result["statistics"]["p1"]["mean"]) == 2
     assert set(result["statistics"]["p2"]["quantiles"]) == {"0.1", "0.5", "0.9"}
-    assert result["reference_values"] == {"p1": 4.0}
+    assert result["metadata"]["posterior_snapshot_indices"] == [0]
+    assert len(result["snapshots"]) == 1
+    histogram = result["snapshots"][0]["histograms"]["p1"]
+    assert len(histogram["bin_edges"]) == 6
+    assert sum(histogram["counts"]) == 20
+    assert np.isclose(
+        np.sum(np.diff(histogram["bin_edges"]) * histogram["density"]),
+        1.0,
+    )
+    assert "reference_values" not in result
+
+    with pytest.raises(ValueError, match="outside the valid, preprocessed time axis"):
+        predictor._predict(
+            dataset,
+            bundle,
+            {"num_samples": 20, "posterior_snapshot_indices": [2]},
+        )
 
 
 def test_common_latent_samples_preserve_condition_shift():

@@ -19,7 +19,7 @@ def test_built_in_dataset_loads_sensor_profile_and_english_metadata():
     assert dataset.y.shape == (301, 1)
     assert dataset.metadata["dataset_id"] == "operating_profile"
     assert dataset.metadata["time_label"] == "Time"
-    assert dataset.metadata["reference_values"]["T_In_An_Ist"] == 343.15
+    assert "reference_values" not in dataset.metadata
 
 
 def test_custom_dataset_resolves_csv_and_metadata_next_to_config(tmp_path):
