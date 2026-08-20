@@ -40,6 +40,64 @@ The inverse mapping is conditioned on eleven measurable or derived quantities:
 | 10 | Anode hydrogen flux | mol/(m² s) |
 | 11 | Cathode oxygen flux | mol/(m² s) |
 
+## Workflow
+
+The plugin follows VIPR's five-step inference workflow. Preprocessing only
+prepares the conditioning quantities for the cINN; the actual inversion takes
+place in the prediction step. Condition preprocessing is registered as a VIPR
+filter and result collection as a runtime hook; neither is configured as a
+preprocess or postprocess handler.
+
+```mermaid
+flowchart TD
+    SENSOR["sensor_data.csv<br/>raw conditioning quantities"]
+    PROFILE["profile.yaml<br/>CSV columns to condition IDs"]
+    MANIFEST["model.yaml<br/>condition and target descriptions"]
+    ARTIFACTS["model artifacts<br/>checkpoint, parameter scaler<br/>and condition scaler"]
+
+    subgraph LOAD_DATA["1. Load data"]
+        DATA_LOADER["pemfc_dataset<br/>read CSV and map condition IDs"]
+        RAW_DATA["VIPR DataSet<br/>raw conditions, time and metadata"]
+        DATA_LOADER --> RAW_DATA
+    end
+
+    subgraph LOAD_MODEL["2. Load model"]
+        MODEL_LOADER["pemfc_cinn<br/>verify hashes and checkpoint names"]
+        BUNDLE["PEMFCCINNBundle<br/>cINN, scalers and variable descriptions"]
+        MODEL_LOADER --> BUNDLE
+    end
+
+    subgraph PREPROCESS["3. Preprocess"]
+        SELECT["select model conditions<br/>and restore checkpoint order"]
+        VALIDATE["handle non-finite values<br/>and check training ranges"]
+        SCALE["scale conditions<br/>to the model feature range"]
+        SELECT --> VALIDATE --> SCALE
+    end
+
+    subgraph PREDICT["4. Predict"]
+        SAMPLE["draw latent samples"]
+        INVERT["inverse cINN mapping"]
+        UNSCALE["convert samples back<br/>to physical parameter units"]
+        SUMMARIZE["posterior means, statistics<br/>and empirical histograms"]
+        SAMPLE --> INVERT --> UNSCALE --> SUMMARIZE
+    end
+
+    subgraph POSTPROCESS["5. Postprocess"]
+        COLLECT["PEMFCDataCollector"]
+        EXPORT["tables, trajectory CSVs,<br/>SVG plots and plotting scripts"]
+        COLLECT --> EXPORT
+    end
+
+    SENSOR --> DATA_LOADER
+    PROFILE --> DATA_LOADER
+    MANIFEST --> MODEL_LOADER
+    ARTIFACTS --> MODEL_LOADER
+    RAW_DATA --> SELECT
+    BUNDLE --> SELECT
+    SCALE --> INVERT
+    BUNDLE --> INVERT
+    SUMMARIZE --> COLLECT
+```
 
 ## Example result
 
