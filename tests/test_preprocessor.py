@@ -15,11 +15,9 @@ def test_preprocessor_reorders_drops_invalid_and_scales():
     app = make_app()
     condition_scaler = MinMaxScaler(np.array([[0.0, 10.0], [10.0, 20.0]]))
     app.inference.model = PEMFCCINNBundle(
-        model=SimpleNamespace(),
+        model=SimpleNamespace(condition_names=["a", "b"], parameter_names=["p"]),
         condition_scaler=condition_scaler,
         parameter_scaler=MinMaxScaler(np.array([[0.0, 1.0]])),
-        condition_names=["a", "b"],
-        parameter_names=["p"],
         conditions={
             "a": ParameterDescriptor(name="a", id="signal_a", label="A", unit=""),
             "b": ParameterDescriptor(name="b", id="signal_b", label="B", unit=""),
@@ -28,7 +26,7 @@ def test_preprocessor_reorders_drops_invalid_and_scales():
             "p": ParameterDescriptor(name="p", id="p", label="P", unit="")
         },
         device=torch.device("cpu"),
-        checkpoint_path="model.ckpt",
+        model_id="test_model",
     )
     dataset = DataSet(
         x=np.array(

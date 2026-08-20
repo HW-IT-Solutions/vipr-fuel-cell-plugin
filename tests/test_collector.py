@@ -126,6 +126,7 @@ def test_collector_keeps_quantiles_out_of_standard_diagram():
         "metadata": {
             "dataset_id": "test",
             "dataset_title": "Test",
+            "model_id": "test_model",
             "num_samples": 10,
             "seed": 1,
             "quantiles": [0.5],

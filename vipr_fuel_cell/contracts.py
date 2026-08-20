@@ -108,7 +108,7 @@ class PEMFCPosteriorMetadata(BaseModel):
     dataset_id: str
     dataset_title: str
     dataset_source: dict[str, str] = Field(default_factory=dict)
-    model_id: str | None = None
+    model_id: str
     num_samples: int
     seed: int
     quantiles: list[float]

@@ -6,7 +6,7 @@ import torch
 
 from vipr_fuel_cell.contracts import ParameterDescriptor
 
-from .model import PEMFCCINN
+from .cinn_network import PEMFCCINN
 from .scaler import MinMaxScaler
 
 
@@ -15,13 +15,18 @@ class PEMFCCINNBundle:
     model: PEMFCCINN
     condition_scaler: MinMaxScaler
     parameter_scaler: MinMaxScaler
-    condition_names: list[str]
-    parameter_names: list[str]
     conditions: dict[str, ParameterDescriptor]
     parameters: dict[str, ParameterDescriptor]
     device: torch.device
-    checkpoint_path: str
-    model_id: str | None = None
+    model_id: str
+
+    @property
+    def condition_names(self) -> list[str]:
+        return self.model.condition_names
+
+    @property
+    def parameter_names(self) -> list[str]:
+        return self.model.parameter_names
 
 
 def as_pemfc_bundle(candidate) -> PEMFCCINNBundle:

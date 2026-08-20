@@ -32,7 +32,6 @@ class PEMFCCINNModelLoaderParams(BaseModel):
         ),
     )
     device: str = Field(default="cpu")
-    strict: bool = Field(default=True)
 
 
 def _select_device(requested: str) -> torch.device:
@@ -67,7 +66,6 @@ class PEMFCCINNModelLoader(ModelLoaderHandler):
             manifest=manifest,
             artifact_directory=artifact_directory,
             device=device,
-            strict=params.strict,
         )
 
         self.app.log.info(

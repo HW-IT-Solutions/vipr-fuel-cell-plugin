@@ -12,7 +12,7 @@ from tests.helpers import make_app
 from vipr_fuel_cell.load_model import artifacts
 from vipr_fuel_cell.load_model.artifacts import PEMFCModelManifest
 from vipr_fuel_cell.load_model.cinn_loader import PEMFCCINNModelLoader
-from vipr_fuel_cell.load_model.model import PEMFCCINN
+from vipr_fuel_cell.load_model.cinn_network import PEMFCCINN
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
 
 
@@ -108,7 +108,6 @@ def test_packaged_manifest_loads_verified_artifacts_and_semantic_metadata():
     )
 
     assert bundle.model_id == "test_case_1"
-    assert bundle.checkpoint_path.endswith("models/test_case_1/checkpoint.ckpt")
     assert bundle.conditions["U_cell_V"].id == "cell_voltage"
     assert bundle.parameters["T_In_An_Ist"].label == "Anode inlet temperature"
     assert bundle.parameters["T_In_An_Ist"].unit == "K"
@@ -179,6 +178,7 @@ def test_explicit_manifest_and_artifact_directory_load_model(tmp_path):
 
     assert bundle.parameter_names == ["p1", "p2"]
     assert bundle.condition_names == ["c1", "c2", "c3"]
+    assert bundle.model_id == "custom_model"
     assert bundle.conditions["c1"].id == "signal_1"
     assert bundle.parameter_scaler.n_features == 2
     with torch.inference_mode():

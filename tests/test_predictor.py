@@ -14,6 +14,9 @@ from vipr_fuel_cell.contracts import PEMFCPosteriorResult, ParameterDescriptor
 
 
 class FakeInverseModel:
+    parameter_names = ["p1", "p2"]
+    condition_names = ["c1", "c2"]
+
     def inverse(self, latent, conditions):
         return latent + conditions[:, : latent.shape[1]]
 
@@ -23,8 +26,6 @@ def test_predictor_returns_time_aligned_posterior_statistics():
         model=FakeInverseModel(),
         condition_scaler=MinMaxScaler(np.array([[0.0, 1.0], [0.0, 1.0]])),
         parameter_scaler=MinMaxScaler(np.array([[0.0, 10.0], [100.0, 200.0]])),
-        condition_names=["c1", "c2"],
-        parameter_names=["p1", "p2"],
         conditions={
             name: ParameterDescriptor(name=name, id=name, label=name, unit="")
             for name in ("c1", "c2")
@@ -34,7 +35,7 @@ def test_predictor_returns_time_aligned_posterior_statistics():
             for name in ("p1", "p2")
         },
         device=torch.device("cpu"),
-        checkpoint_path="fake.ckpt",
+        model_id="test_model",
     )
     dataset = DataSet(
         x=np.array([[0.1, 0.2], [0.3, 0.4]], dtype=np.float32),
@@ -88,8 +89,6 @@ def test_common_latent_samples_preserve_condition_shift():
         model=FakeInverseModel(),
         condition_scaler=MinMaxScaler(np.array([[0.0, 1.0], [0.0, 1.0]])),
         parameter_scaler=MinMaxScaler(np.array([[0.0, 1.0], [0.0, 1.0]])),
-        condition_names=["c1", "c2"],
-        parameter_names=["p1", "p2"],
         conditions={
             name: ParameterDescriptor(name=name, id=name, label=name, unit="")
             for name in ("c1", "c2")
@@ -99,7 +98,7 @@ def test_common_latent_samples_preserve_condition_shift():
             for name in ("p1", "p2")
         },
         device=torch.device("cpu"),
-        checkpoint_path="fake.ckpt",
+        model_id="test_model",
     )
     dataset = DataSet(
         x=np.array([[0.1, 0.2], [0.4, 0.2]], dtype=np.float32),
@@ -139,6 +138,7 @@ def test_posterior_contract_rejects_quantiles_not_declared_in_metadata():
         "metadata": {
             "dataset_id": "test",
             "dataset_title": "Test",
+            "model_id": "test_model",
             "num_samples": 10,
             "seed": 1,
             "quantiles": [0.5],

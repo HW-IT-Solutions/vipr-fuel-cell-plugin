@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from vipr_fuel_cell.contracts import ParameterDescriptor
 from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
-from vipr_fuel_cell.load_model.model import PEMFCCINN
+from vipr_fuel_cell.load_model.cinn_network import PEMFCCINN
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
 
 FUEL_CELL_ROOT_ENV_VAR = "VIPR_FUEL_CELL_ROOT_DIR"
@@ -195,7 +195,6 @@ def _load_bundle_from_paths(
     parameter_scaler_path: Path,
     condition_scaler_path: Path,
     device: torch.device,
-    strict: bool,
     manifest: PEMFCModelManifest,
 ) -> PEMFCCINNBundle:
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
@@ -225,7 +224,7 @@ def _load_bundle_from_paths(
     state_dict = checkpoint.get("state_dict")
     if not isinstance(state_dict, dict) or not state_dict:
         raise ValueError("Checkpoint contains no model state_dict")
-    model.load_state_dict(state_dict, strict=strict)
+    model.load_state_dict(state_dict, strict=True)
     model.eval()
 
     parameter_scaler = MinMaxScaler.from_json(parameter_scaler_path)
@@ -243,12 +242,9 @@ def _load_bundle_from_paths(
         model=model,
         condition_scaler=condition_scaler,
         parameter_scaler=parameter_scaler,
-        condition_names=condition_names,
-        parameter_names=parameter_names,
         conditions=conditions,
         parameters=parameters,
         device=device,
-        checkpoint_path=str(checkpoint_path),
         model_id=manifest.id,
     )
 
@@ -258,7 +254,6 @@ def load_model_bundle(
     manifest: PEMFCModelManifest,
     artifact_directory: Path,
     device: torch.device,
-    strict: bool,
 ) -> PEMFCCINNBundle:
     """Load a complete, verified cINN bundle described by one manifest."""
     checkpoint, parameter_scaler, condition_scaler = verify_artifacts(
@@ -269,6 +264,5 @@ def load_model_bundle(
         parameter_scaler_path=parameter_scaler,
         condition_scaler_path=condition_scaler,
         device=device,
-        strict=strict,
         manifest=manifest,
     )
