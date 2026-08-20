@@ -17,6 +17,7 @@ class PEMFCCINNBundle:
     parameter_scaler: MinMaxScaler
     condition_names: list[str]
     parameter_names: list[str]
+    conditions: dict[str, ParameterDescriptor]
     parameters: dict[str, ParameterDescriptor]
     device: torch.device
     checkpoint_path: str

@@ -64,20 +64,28 @@ simulated operating-profile change:
 
 ## Components
 
-- `pemfc_dataset` loads a curated sensor profile and its English metadata.
-- `pemfc_cinn` directly loads a locally provisioned cINN and its min/max
-  scalers. No VIPR registry loader is used.
+- `pemfc_dataset` loads a PEMFC sensor profile from CSV and maps its columns to
+  stable signal IDs through a profile YAML file.
+- `pemfc_cinn` loads a model manifest and the locally provisioned checkpoint
+  and min/max scalers. The manifest defines the model's conditioning and target
+  quantities, artifact filenames, and SHA-256 hashes. No VIPR registry loader
+  is used.
 - `PEMFCConditionPreprocessor` selects, validates and scales model conditions.
 - `pemfc_posterior` samples and summarizes the conditional posterior.
 - `PEMFCDataCollector` exports parameter summaries, mean trajectories, and
   configured empirical posterior snapshots.
 
-The dataset loader requires explicit `data_path` and `metadata_path` values.
-The model loader accepts either a named, provisioned model or an explicit
-`checkpoint_path`. Relative file paths are resolved next to the VIPR config.
-For a named model, the loader owns resolution, checksum validation, checkpoint
-loading, scaler validation, and the consistency check between checkpoint names
-and packaged presentation metadata.
+The dataset loader requires explicit `data_path` and `profile_path` values; the
+model loader requires an explicit `manifest_path`. Relative file paths are
+resolved next to the VIPR config, and packaged files can use VIPR's
+`@package/path` syntax. The model loader resolves the artifacts described by the
+manifest, verifies their checksums, loads and validates the scalers, and checks
+that all condition and target names match the checkpoint.
+
+Metadata has one owner at each layer: the checkpoint defines tensor names and
+their order; `model.yaml` assigns stable IDs, labels, and units to all model
+conditions and targets; `profile.yaml` contains only profile provenance, its
+time axis, and the mapping from signal IDs to CSV columns.
 
 ## Installation
 
@@ -116,21 +124,21 @@ $VIPR_FUEL_CELL_ROOT_DIR/models/test_case_1/
 
 This is the target layout for moving the artifacts to Hugging Face later. The
 repository ID and immutable revision will be added only after the redistribution
-terms and hosting location are confirmed. The packaged metadata and SHA-256
-manifest remain part of the plugin.
+terms and hosting location are confirmed. The packaged model manifest and its
+SHA-256 values remain part of the plugin.
 
 When running directly from a source checkout, the loader falls back to the
 repository's `models/` directory. An installed wheel has no implicit model
 location and therefore requires `VIPR_FUEL_CELL_ROOT_DIR` or an explicit
-`checkpoint_path`. The artifact filenames `scaler_x.json` and `scaler_y.json`
+`artifact_dir`. The artifact filenames `scaler_x.json` and `scaler_y.json`
 are retained for compatibility with the published bundle; internally they are
 exposed as the parameter and condition scaler.
 
 ## Run
 
-The example config references packaged sensor data and metadata alongside a
-logical model name. It has no machine-specific paths, sensor arrays, run IDs,
-or registry entries.
+The example config references packaged sensor data, a profile mapping, and a
+model manifest. It has no machine-specific paths, sensor arrays, run IDs, or
+registry entries.
 
 ```bash
 vipr --config \
@@ -138,9 +146,10 @@ vipr --config \
   inference run
 ```
 
-The sensor CSV and its metadata are selected through explicit
-`@vipr_fuel_cell/...` package-resource paths. The direct model loader selects
-the paper's eleven-condition cINN as `test_case_1`.
+The sensor CSV, profile, and model manifest are selected through explicit
+`@vipr_fuel_cell/...` package-resource paths. The manifest identifies the
+paper's eleven-condition cINN as `test_case_1`; its artifacts are resolved from
+the source checkout or the configured artifact root.
 
 ### Use a custom sensor profile
 
@@ -163,15 +172,47 @@ vipr:
       handler: pemfc_dataset
       parameters:
         data_path: ../datasets/my_profile/sensor_data.csv
-        metadata_path: ../datasets/my_profile/metadata.yaml
+        profile_path: ../datasets/my_profile/profile.yaml
 ```
 
 The preprocessing filter is required to select, order, validate, and scale the
-conditions for the loaded cINN. Both `data_path` and `metadata_path` are
-required. In the metadata, `column` identifies a CSV column and `name`
-identifies the corresponding checkpoint condition. The order is arbitrary,
-but all eleven conditions required by `test_case_1` must be present; additional
-conditions are ignored by its preprocessor.
+conditions for the loaded cINN. Both `data_path` and `profile_path` are
+required. In the profile, each `column` identifies a CSV column and its `id`
+identifies the corresponding condition from the model manifest. The order is
+arbitrary, but all eleven condition IDs required by `test_case_1` must be
+present; additional signals are ignored by its preprocessor.
+
+For example, a profile mapping starts as follows:
+
+```yaml
+schema_version: 1
+id: my_profile
+title: My operating profile
+description: Sensor data for a custom operating profile
+time: {column: time_s, label: Time, unit: s}
+columns:
+  - {id: cell_voltage, column: measured_cell_voltage_V}
+  - {id: concentration_loss, column: calculated_concentration_loss_V}
+```
+
+### Use a custom model bundle
+
+Every model, including a custom checkpoint, requires a manifest. Copy the
+packaged [`model.yaml`](vipr_fuel_cell/resources/models/test_case_1/model.yaml),
+adapt its condition and target descriptors and artifact hashes, and configure:
+
+```yaml
+load_model:
+  handler: pemfc_cinn
+  parameters:
+    manifest_path: ../models/my_model/model.yaml
+    artifact_dir: ../models/my_model
+    device: cpu
+```
+
+If `artifact_dir` is omitted, the loader looks below
+`$VIPR_FUEL_CELL_ROOT_DIR/models/<manifest-id>/` and then in the source
+checkout's `models/<manifest-id>/` directory.
 
 The example reconstructs all 300 valid sensor-profile steps. Its diagrams show
 only the posterior mean over time; no uncertainty band, anomaly threshold, or

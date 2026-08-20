@@ -1,0 +1,105 @@
+schema_version: 1
+id: test_case_1
+title: PEMFC cINN - Test Case 1
+description: >-
+  Published cINN model conditioned on the eleven voltage-, loss-, current-
+  density-, water-flux-, and reactant-flux-related quantities defined as Test
+  Case 1 in the accompanying PEMFC monitoring study. Tensor names and their
+  order are read from the checkpoint; this manifest defines their stable IDs,
+  labels, units, and the verified artifact bundle.
+publication:
+  title: Conditional invertible neural network for online-capable monitoring of polymer electrolyte membrane fuel cells
+  doi: https://doi.org/10.1016/j.ijhydene.2026.155929
+  test_case: Test Case 1
+conditions:
+  - name: U_cell_V
+    id: cell_voltage
+    label: Cell voltage
+    unit: V
+  - name: E_Con
+    id: concentration_loss
+    label: Concentration loss
+    unit: V
+  - name: E_Ohm
+    id: ohmic_loss
+    label: Ohmic loss
+    unit: V
+  - name: E_Cross
+    id: hydrogen_crossover_loss
+    label: Hydrogen crossover loss
+    unit: V
+  - name: E_act
+    id: activation_loss
+    label: Activation loss
+    unit: V
+  - name: Imax_An_fit
+    id: anode_limiting_current_density
+    label: Anode limiting current density
+    unit: A/cm²
+  - name: Imax_Kath_fit
+    id: cathode_limiting_current_density
+    label: Cathode limiting current density
+    unit: A/cm²
+  - name: N_flux_H2O_th_An
+    id: anode_water_flux
+    label: Anode water flux
+    unit: mol/(m² s)
+  - name: N_flux_H2O_th_Kath
+    id: cathode_water_flux
+    label: Cathode water flux
+    unit: mol/(m² s)
+  - name: N_flux_H2_th_An
+    id: anode_hydrogen_flux
+    label: Anode hydrogen flux
+    unit: mol/(m² s)
+  - name: N_flux_O2_th_Kath
+    id: cathode_oxygen_flux
+    label: Cathode oxygen flux
+    unit: mol/(m² s)
+targets:
+  - name: J_Cell_A_cm2
+    id: cell_current_density
+    label: Cell current density
+    unit: A/cm²
+  - name: RH_In_An_Ist
+    id: anode_inlet_relative_humidity
+    label: Anode inlet relative humidity
+    unit: "1"
+  - name: RH_In_Cath_Ist
+    id: cathode_inlet_relative_humidity
+    label: Cathode inlet relative humidity
+    unit: "1"
+  - name: T_In_An_Ist
+    id: anode_inlet_temperature
+    label: Anode inlet temperature
+    unit: K
+  - name: T_In_Cath_Ist
+    id: cathode_inlet_temperature
+    label: Cathode inlet temperature
+    unit: K
+  - name: p_In_An_Ist
+    id: anode_inlet_pressure
+    label: Anode inlet pressure
+    unit: atm
+  - name: p_In_Cath_Ist
+    id: cathode_inlet_pressure
+    label: Cathode inlet pressure
+    unit: atm
+  - name: Stoech_In_H2_An_Ist
+    id: hydrogen_stoichiometry
+    label: Hydrogen stoichiometry
+    unit: "1"
+  - name: Stoech_In_O2_Cath_Ist
+    id: oxygen_stoichiometry
+    label: Oxygen stoichiometry
+    unit: "1"
+artifacts:
+  checkpoint:
+    filename: checkpoint.ckpt
+    sha256: 9e48cc5aef1ecd7b295932dba870115bfdfae5e84ded2512828aa98bb9f793b7
+  parameter_scaler:
+    filename: scaler_x.json
+    sha256: 756f18d51b4946878f1ccaa812d05feac12a3a38922d4adfd14499a52b1712ab
+  condition_scaler:
+    filename: scaler_y.json
+    sha256: 99d6d8f438fd9107ebcfa52ab50bfa64238597b6237dbb9f515bdd206ece3490

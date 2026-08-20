@@ -18,3 +18,14 @@ def resolve_required_file(app, value: str, label: str) -> Path:
     if resolved is None or not resolved.is_file():
         raise FileNotFoundError(f"Could not resolve {label}: {value!r}")
     return resolved
+
+
+def resolve_required_directory(app, value: str, label: str) -> Path:
+    """Resolve an external directory relative to the active VIPR config."""
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = config_base_dir(app) / path
+    path = path.resolve()
+    if not path.is_dir():
+        raise FileNotFoundError(f"Could not resolve {label}: {value!r}")
+    return path

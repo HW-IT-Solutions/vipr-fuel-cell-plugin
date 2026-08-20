@@ -20,6 +20,10 @@ def test_preprocessor_reorders_drops_invalid_and_scales():
         parameter_scaler=MinMaxScaler(np.array([[0.0, 1.0]])),
         condition_names=["a", "b"],
         parameter_names=["p"],
+        conditions={
+            "a": ParameterDescriptor(name="a", id="signal_a", label="A", unit=""),
+            "b": ParameterDescriptor(name="b", id="signal_b", label="B", unit=""),
+        },
         parameters={
             "p": ParameterDescriptor(name="p", id="p", label="P", unit="")
         },
@@ -36,7 +40,7 @@ def test_preprocessor_reorders_drops_invalid_and_scales():
         ),
         y=np.array([[0.0], [1.0], [2.0]]),
         metadata={
-            **dataset_metadata(["b", "a", "unused"]),
+            **dataset_metadata(["signal_b", "signal_a", "unused"]),
             "original_time_steps": 3,
             "upstream_extension": {"preserve": True},
         },
@@ -49,7 +53,5 @@ def test_preprocessor_reorders_drops_invalid_and_scales():
     np.testing.assert_allclose(result.y[:, 0], [0.0, 2.0])
     assert result.metadata["dropped_time_step_indices"] == [1]
     assert result.metadata["conditions_scaled"] is True
-    assert result.metadata["condition_names"] == ["a", "b"]
-    assert set(result.metadata["condition_labels"]) == {"a", "b"}
-    assert set(result.metadata["condition_units"]) == {"a", "b"}
+    assert result.metadata["signal_ids"] == ["signal_a", "signal_b"]
     assert result.metadata["upstream_extension"] == {"preserve": True}

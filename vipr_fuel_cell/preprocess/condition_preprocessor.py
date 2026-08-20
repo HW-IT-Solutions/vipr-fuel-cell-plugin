@@ -39,19 +39,26 @@ class PEMFCConditionPreprocessor:
         )
         context = PEMFCDatasetContext.model_validate(data.metadata)
 
-        supplied_names = context.condition_names
-        if len(supplied_names) != data.x.shape[1]:
+        supplied_ids = context.signal_ids
+        if len(supplied_ids) != data.x.shape[1]:
             raise ValueError(
-                "DataSet condition_names metadata does not match the condition matrix"
+                "DataSet signal_ids metadata does not match the signal matrix"
             )
+        ordered_descriptors = [
+            bundle.conditions[name] for name in bundle.condition_names
+        ]
         missing = [
-            name for name in bundle.condition_names if name not in supplied_names
+            f"{descriptor.id} ({descriptor.name})"
+            for descriptor in ordered_descriptors
+            if descriptor.id not in supplied_ids
         ]
         if missing:
             raise ValueError(
-                f"Loaded model requires conditions missing from the DataSet: {missing}"
+                "Loaded model requires condition IDs missing from the DataSet: "
+                f"{missing}"
             )
-        indices = [supplied_names.index(name) for name in bundle.condition_names]
+        selected_ids = [descriptor.id for descriptor in ordered_descriptors]
+        indices = [supplied_ids.index(identifier) for identifier in selected_ids]
         raw_conditions = np.asarray(data.x[:, indices], dtype=np.float32)
         time = np.asarray(data.y, dtype=np.float64) if data.y is not None else None
 
@@ -80,8 +87,8 @@ class PEMFCConditionPreprocessor:
         out_of_range_count = int(np.count_nonzero(out_of_range_mask))
         if out_of_range_count:
             affected = [
-                name
-                for index, name in enumerate(bundle.condition_names)
+                descriptor.id
+                for index, descriptor in enumerate(ordered_descriptors)
                 if np.any(out_of_range_mask[:, index])
             ]
             message = (
@@ -94,17 +101,10 @@ class PEMFCConditionPreprocessor:
                 self.app.log.warning(message)
 
         scaled = bundle.condition_scaler.transform_numpy(raw_conditions)
-        selected_names = list(bundle.condition_names)
         metadata_payload = context.model_dump(mode="python")
         metadata_payload.update(
             {
-                "condition_names": selected_names,
-                "condition_labels": {
-                    name: context.condition_labels[name] for name in selected_names
-                },
-                "condition_units": {
-                    name: context.condition_units[name] for name in selected_names
-                },
+                "signal_ids": selected_ids,
                 "conditions_scaled": True,
                 "valid_time_steps": int(len(scaled)),
                 "dropped_time_step_indices": invalid_indices,

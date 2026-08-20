@@ -1,88 +1,71 @@
 import json
+from hashlib import sha256
+from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
+import yaml
+from pydantic import ValidationError
 
-from vipr_fuel_cell.load_model.cinn_loader import (
-    PEMFCCINNModelLoader,
-    _default_scaler_path,
-)
+from tests.helpers import make_app
 from vipr_fuel_cell.load_model import artifacts
+from vipr_fuel_cell.load_model.artifacts import PEMFCModelManifest
+from vipr_fuel_cell.load_model.cinn_loader import PEMFCCINNModelLoader
 from vipr_fuel_cell.load_model.model import PEMFCCINN
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
-from tests.helpers import make_app
 
 
-@pytest.mark.integration
-def test_built_in_model_loads_verified_artifacts_and_presentation_metadata():
-    loader = object.__new__(PEMFCCINNModelLoader)
-    loader.app = make_app()
-
-    bundle = loader._load_model(model="test_case_1", device="cpu")
-
-    assert bundle.model_id == "test_case_1"
-    assert bundle.checkpoint_path.endswith("models/test_case_1/checkpoint.ckpt")
-    assert bundle.parameters["T_In_An_Ist"].label == "Anode inlet temperature"
-    assert bundle.parameters["T_In_An_Ist"].unit == "K"
+def _sha256(path: Path) -> str:
+    return sha256(path.read_bytes()).hexdigest()
 
 
-def test_model_identifier_is_an_exact_packaged_manifest_name():
-    loader = object.__new__(PEMFCCINNModelLoader)
-    loader.app = make_app()
-
-    with pytest.raises(ValueError, match="Unknown PEMFC model"):
-        loader._load_model(model="../../test_case_1", device="cpu")
-
-
-def test_packaged_model_metadata_and_checksums_are_available():
-    metadata = artifacts._load_model_metadata("test_case_1")
-    checksums = artifacts._read_checksums("test_case_1")
-
-    assert metadata.id == "test_case_1"
-    assert {target.name for target in metadata.targets} == {
-        "J_Cell_A_cm2",
-        "RH_In_An_Ist",
-        "RH_In_Cath_Ist",
-        "T_In_An_Ist",
-        "T_In_Cath_Ist",
-        "p_In_An_Ist",
-        "p_In_Cath_Ist",
-        "Stoech_In_H2_An_Ist",
-        "Stoech_In_O2_Cath_Ist",
+def _manifest_payload(artifact_hashes: dict[str, str]) -> dict:
+    return {
+        "schema_version": 1,
+        "id": "custom_model",
+        "title": "Custom model",
+        "description": "Synthetic model for tests",
+        "publication": {
+            "title": "Test publication",
+            "doi": "https://example.test/model",
+            "test_case": "Test",
+        },
+        "conditions": [
+            {"name": name, "id": f"signal_{index}", "label": name, "unit": ""}
+            for index, name in enumerate(("c1", "c2", "c3"), start=1)
+        ],
+        "targets": [
+            {"name": name, "id": name, "label": name, "unit": ""}
+            for name in ("p1", "p2")
+        ],
+        "artifacts": {
+            "checkpoint": {
+                "filename": "checkpoint.ckpt",
+                "sha256": artifact_hashes["checkpoint.ckpt"],
+            },
+            "parameter_scaler": {
+                "filename": "scaler_x.json",
+                "sha256": artifact_hashes["scaler_x.json"],
+            },
+            "condition_scaler": {
+                "filename": "scaler_y.json",
+                "sha256": artifact_hashes["scaler_y.json"],
+            },
+        },
     }
-    assert set(checksums) == {"checkpoint.ckpt", "scaler_x.json", "scaler_y.json"}
 
 
-def test_installed_package_requires_an_explicit_artifact_root(
-    tmp_path, monkeypatch
-):
-    monkeypatch.delenv(artifacts.FUEL_CELL_ROOT_ENV_VAR, raising=False)
-    monkeypatch.setattr(artifacts, "_PROJECT_ROOT", tmp_path / "site-packages")
-
-    with pytest.raises(FileNotFoundError, match="VIPR_FUEL_CELL_ROOT_DIR"):
-        artifacts._artifact_directory("test_case_1")
-
-
-def test_default_scaler_path_supports_legacy_training_run_layout(tmp_path):
-    checkpoint = tmp_path / "run" / "checkpoints" / "last.ckpt"
-    checkpoint.parent.mkdir(parents=True)
-    checkpoint.write_bytes(b"checkpoint")
-    legacy_scaler = tmp_path / "run" / "scalers" / "scaler_x.json"
-    legacy_scaler.parent.mkdir(parents=True)
-    legacy_scaler.write_text("{}", encoding="utf-8")
-
-    assert _default_scaler_path(checkpoint, "scaler_x.json") == legacy_scaler
-
-
-def test_direct_model_loader_reconstructs_checkpoint_and_scalers(tmp_path):
+def _write_model_bundle(tmp_path: Path) -> tuple[Path, Path]:
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
     model = PEMFCCINN(
         parameter_names=["p1", "p2"],
         condition_names=["c1", "c2", "c3"],
         n_blocks=1,
         subnet_hidden_size=4,
     )
-    checkpoint_path = tmp_path / "last.ckpt"
+    checkpoint_path = artifact_dir / "checkpoint.ckpt"
     torch.save(
         {
             "hyper_parameters": {
@@ -95,29 +78,108 @@ def test_direct_model_loader_reconstructs_checkpoint_and_scalers(tmp_path):
         },
         checkpoint_path,
     )
-    scaler_x_path = tmp_path / "scaler_x.json"
-    scaler_y_path = tmp_path / "scaler_y.json"
-    scaler_x_path.write_text(
+    (artifact_dir / "scaler_x.json").write_text(
         json.dumps({"feature_range": [0, 1], "minmax": [[0, 1], [10, 20]]}),
         encoding="utf-8",
     )
-    scaler_y_path.write_text(
-        json.dumps({"feature_range": [0, 1], "minmax": [[0, 1], [0, 2], [-1, 1]]}),
+    (artifact_dir / "scaler_y.json").write_text(
+        json.dumps(
+            {"feature_range": [0, 1], "minmax": [[0, 1], [0, 2], [-1, 1]]}
+        ),
         encoding="utf-8",
     )
+    hashes = {path.name: _sha256(path) for path in artifact_dir.iterdir()}
+    manifest_path = tmp_path / "model.yaml"
+    manifest_path.write_text(
+        yaml.safe_dump(_manifest_payload(hashes), sort_keys=False),
+        encoding="utf-8",
+    )
+    return manifest_path, artifact_dir
 
+
+@pytest.mark.integration
+def test_packaged_manifest_loads_verified_artifacts_and_semantic_metadata():
     loader = object.__new__(PEMFCCINNModelLoader)
     loader.app = make_app()
+
     bundle = loader._load_model(
-        checkpoint_path=str(checkpoint_path),
-        scaler_x_path=str(scaler_x_path),
-        scaler_y_path=str(scaler_y_path),
+        manifest_path="@vipr_fuel_cell/resources/models/test_case_1/model.yaml",
+        device="cpu",
+    )
+
+    assert bundle.model_id == "test_case_1"
+    assert bundle.checkpoint_path.endswith("models/test_case_1/checkpoint.ckpt")
+    assert bundle.conditions["U_cell_V"].id == "cell_voltage"
+    assert bundle.parameters["T_In_An_Ist"].label == "Anode inlet temperature"
+    assert bundle.parameters["T_In_An_Ist"].unit == "K"
+
+
+def test_packaged_model_manifest_defines_complete_contract():
+    path = (
+        Path(__file__).parents[1]
+        / "vipr_fuel_cell/resources/models/test_case_1/model.yaml"
+    )
+    manifest = artifacts.load_model_manifest(path)
+
+    assert manifest.id == "test_case_1"
+    assert len(manifest.conditions) == 11
+    assert len(manifest.targets) == 9
+    assert manifest.artifacts.checkpoint.filename == "checkpoint.ckpt"
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("id", "../../test_case_1", "model id"),
+        ("filename", "../checkpoint.ckpt", "basename"),
+        ("sha256", "not-a-hash", "64 hexadecimal"),
+    ],
+)
+def test_manifest_rejects_unsafe_identifiers_and_artifacts(
+    field, value, message
+):
+    payload = _manifest_payload(
+        {
+            "checkpoint.ckpt": "a" * 64,
+            "scaler_x.json": "b" * 64,
+            "scaler_y.json": "c" * 64,
+        }
+    )
+    if field == "id":
+        payload["id"] = value
+    else:
+        payload["artifacts"]["checkpoint"][field] = value
+
+    with pytest.raises(ValidationError, match=message):
+        PEMFCModelManifest.model_validate(payload)
+
+
+def test_installed_package_requires_an_explicit_artifact_root(
+    tmp_path, monkeypatch
+):
+    monkeypatch.delenv(artifacts.FUEL_CELL_ROOT_ENV_VAR, raising=False)
+    monkeypatch.setattr(artifacts, "_PROJECT_ROOT", tmp_path / "site-packages")
+
+    with pytest.raises(FileNotFoundError, match="artifact_dir"):
+        artifacts.resolve_artifact_directory("test_case_1")
+
+
+def test_explicit_manifest_and_artifact_directory_load_model(tmp_path):
+    manifest_path, artifact_dir = _write_model_bundle(tmp_path)
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text("vipr: {}\n", encoding="utf-8")
+    loader = object.__new__(PEMFCCINNModelLoader)
+    loader.app = make_app(config_path)
+
+    bundle = loader._load_model(
+        manifest_path=manifest_path.name,
+        artifact_dir=artifact_dir.name,
         device="cpu",
     )
 
     assert bundle.parameter_names == ["p1", "p2"]
     assert bundle.condition_names == ["c1", "c2", "c3"]
-    assert bundle.parameters["p1"].label == "p1"
+    assert bundle.conditions["c1"].id == "signal_1"
     assert bundle.parameter_scaler.n_features == 2
     with torch.inference_mode():
         result = bundle.model.inverse(torch.zeros(5, 2), torch.zeros(5, 3))

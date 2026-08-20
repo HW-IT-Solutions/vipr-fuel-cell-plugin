@@ -16,11 +16,11 @@ vipr:
       handler: pemfc_dataset
       parameters:
         data_path: "@vipr_fuel_cell/resources/datasets/operating_profile/sensor_data.csv"
-        metadata_path: "@vipr_fuel_cell/resources/datasets/operating_profile/metadata.yaml"
+        profile_path: "@vipr_fuel_cell/resources/datasets/operating_profile/profile.yaml"
     load_model:
       handler: pemfc_cinn
       parameters:
-        model: test_case_1
+        manifest_path: "@vipr_fuel_cell/resources/models/test_case_1/model.yaml"
         device: cpu
     preprocess:
       handler: ""

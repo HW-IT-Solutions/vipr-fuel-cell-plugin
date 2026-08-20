@@ -35,10 +35,8 @@ class PEMFCDatasetContext(BaseModel):
     dataset_description: str
     dataset_source: dict[str, str] = Field(default_factory=dict)
     source: str
-    metadata_source: str
-    condition_names: list[str]
-    condition_labels: dict[str, str]
-    condition_units: dict[str, str]
+    profile_source: str
+    signal_ids: list[str]
     time_label: str
     time_unit: str
     original_time_steps: int = Field(ge=1)
@@ -48,14 +46,9 @@ class PEMFCDatasetContext(BaseModel):
     out_of_range_value_count: int = 0
 
     @model_validator(mode="after")
-    def validate_condition_metadata(self):
-        names = set(self.condition_names)
-        if len(names) != len(self.condition_names):
-            raise ValueError("condition_names must be unique")
-        if set(self.condition_labels) != names or set(self.condition_units) != names:
-            raise ValueError(
-                "condition_labels and condition_units must cover condition_names exactly"
-            )
+    def validate_signal_ids(self):
+        if len(set(self.signal_ids)) != len(self.signal_ids):
+            raise ValueError("signal_ids must be unique")
         return self
 
 

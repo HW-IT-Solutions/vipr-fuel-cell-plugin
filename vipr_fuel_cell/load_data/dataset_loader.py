@@ -1,4 +1,4 @@
-"""Load curated PEMFC sensor profiles with explicit English metadata."""
+"""Load PEMFC sensor profiles through an explicit column mapping."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from vipr.plugins.discovery.decorators import discover_data_loader
 from vipr.plugins.inference.dataset import DataSet
@@ -16,13 +16,11 @@ from vipr_fuel_cell.contracts import PEMFCDatasetContext
 from vipr_fuel_cell.paths import resolve_required_file
 
 
-class SignalMetadata(BaseModel):
+class ProfileColumn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str
+    id: str
     column: str
-    label: str
-    unit: str
 
 
 class TimeMetadata(BaseModel):
@@ -33,7 +31,7 @@ class TimeMetadata(BaseModel):
     unit: str = "s"
 
 
-class PEMFCDatasetMetadata(BaseModel):
+class PEMFCDatasetProfile(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     schema_version: int = 1
@@ -42,25 +40,35 @@ class PEMFCDatasetMetadata(BaseModel):
     description: str
     source: dict[str, str] = Field(default_factory=dict)
     time: TimeMetadata = Field(default_factory=TimeMetadata)
-    conditions: list[SignalMetadata]
+    columns: list[ProfileColumn] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_columns(self):
+        ids = [item.id for item in self.columns]
+        columns = [item.column for item in self.columns]
+        if len(set(ids)) != len(ids):
+            raise ValueError("profile column ids must be unique")
+        if len(set(columns)) != len(columns):
+            raise ValueError("profile CSV columns must be unique")
+        return self
 
 
 class PEMFCDatasetLoaderParams(BaseModel):
-    """Paths for a PEMFC sensor profile and its metadata."""
+    """Paths for a PEMFC sensor profile and its column mapping."""
 
     model_config = ConfigDict(extra="forbid")
 
     data_path: str = Field(
         description="Sensor CSV path, resolved relative to the VIPR config",
     )
-    metadata_path: str = Field(
-        description="Metadata YAML path, resolved relative to the VIPR config",
+    profile_path: str = Field(
+        description="Profile YAML path, resolved relative to the VIPR config",
     )
 
 
-def _read_metadata(path: Path) -> PEMFCDatasetMetadata:
+def _read_profile(path: Path) -> PEMFCDatasetProfile:
     parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return PEMFCDatasetMetadata.model_validate(parsed)
+    return PEMFCDatasetProfile.model_validate(parsed)
 
 
 def _read_numeric_columns(path: Path) -> dict[str, np.ndarray]:
@@ -85,7 +93,7 @@ def _read_numeric_columns(path: Path) -> dict[str, np.ndarray]:
 
 @discover_data_loader("pemfc_dataset", PEMFCDatasetLoaderParams)
 class PEMFCDatasetLoader(DataLoaderHandler):
-    """Load a PEMFC sensor profile and its domain metadata."""
+    """Load a PEMFC sensor profile and its stable signal identifiers."""
 
     class Meta:
         label = "pemfc_dataset"
@@ -95,50 +103,40 @@ class PEMFCDatasetLoader(DataLoaderHandler):
         data_path = resolve_required_file(
             self.app, params.data_path, "PEMFC sensor CSV"
         )
-        metadata_path = resolve_required_file(
-            self.app, params.metadata_path, "PEMFC dataset metadata"
+        profile_path = resolve_required_file(
+            self.app, params.profile_path, "PEMFC dataset profile"
         )
-        metadata_definition = _read_metadata(metadata_path)
+        profile = _read_profile(profile_path)
         columns = _read_numeric_columns(data_path)
-        required_columns = [metadata_definition.time.column] + [
-            condition.column for condition in metadata_definition.conditions
+        required_columns = [profile.time.column] + [
+            item.column for item in profile.columns
         ]
         missing = [name for name in required_columns if name not in columns]
         if missing:
             raise ValueError(
-                f"PEMFC sensor CSV is missing metadata columns {missing}; "
+                f"PEMFC sensor CSV is missing profile columns {missing}; "
                 f"available: {sorted(columns)}"
             )
 
-        condition_names = [
-            condition.name for condition in metadata_definition.conditions
-        ]
+        signal_ids = [item.id for item in profile.columns]
         conditions = np.column_stack(
-            [columns[condition.column] for condition in metadata_definition.conditions]
+            [columns[item.column] for item in profile.columns]
         )
-        time = columns[metadata_definition.time.column]
+        time = columns[profile.time.column]
         metadata = PEMFCDatasetContext(
-            dataset_id=metadata_definition.id,
-            dataset_title=metadata_definition.title,
-            dataset_description=metadata_definition.description,
-            dataset_source=metadata_definition.source,
+            dataset_id=profile.id,
+            dataset_title=profile.title,
+            dataset_description=profile.description,
+            dataset_source=profile.source,
             source=str(data_path),
-            metadata_source=str(metadata_path),
-            condition_names=condition_names,
-            condition_labels={
-                condition.name: condition.label
-                for condition in metadata_definition.conditions
-            },
-            condition_units={
-                condition.name: condition.unit
-                for condition in metadata_definition.conditions
-            },
-            time_label=metadata_definition.time.label,
-            time_unit=metadata_definition.time.unit,
+            profile_source=str(profile_path),
+            signal_ids=signal_ids,
+            time_label=profile.time.label,
+            time_unit=profile.time.unit,
             original_time_steps=int(len(time)),
         ).model_dump(mode="python")
         self.app.log.info(
-            f"Loaded PEMFC dataset {metadata_definition.id!r} from {data_path} with "
-            f"{len(time)} time steps and {len(condition_names)} conditions"
+            f"Loaded PEMFC dataset {profile.id!r} from {data_path} with "
+            f"{len(time)} time steps and {len(signal_ids)} signals"
         )
         return DataSet(x=conditions, y=time[:, None], metadata=metadata)

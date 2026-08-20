@@ -13,48 +13,26 @@ time:
   column: time_s
   label: Time
   unit: s
-conditions:
-  - name: U_cell_V
+columns:
+  - id: cell_voltage
     column: cell_voltage_V
-    label: Cell voltage
-    unit: V
-  - name: E_Con
+  - id: concentration_loss
     column: concentration_loss_V
-    label: Concentration loss
-    unit: V
-  - name: E_Ohm
+  - id: ohmic_loss
     column: ohmic_loss_V
-    label: Ohmic loss
-    unit: V
-  - name: E_Cross
+  - id: hydrogen_crossover_loss
     column: crossover_loss_V
-    label: Hydrogen crossover loss
-    unit: V
-  - name: E_act
+  - id: activation_loss
     column: activation_loss_V
-    label: Activation loss
-    unit: V
-  - name: Imax_An_fit
+  - id: anode_limiting_current_density
     column: anode_limiting_current_density_A_cm2
-    label: Anode limiting current density
-    unit: A/cm²
-  - name: Imax_Kath_fit
+  - id: cathode_limiting_current_density
     column: cathode_limiting_current_density_A_cm2
-    label: Cathode limiting current density
-    unit: A/cm²
-  - name: N_flux_H2O_th_An
+  - id: anode_water_flux
     column: anode_water_flux_mol_m2_s
-    label: Anode water flux
-    unit: mol/(m² s)
-  - name: N_flux_H2O_th_Kath
+  - id: cathode_water_flux
     column: cathode_water_flux_mol_m2_s
-    label: Cathode water flux
-    unit: mol/(m² s)
-  - name: N_flux_H2_th_An
+  - id: anode_hydrogen_flux
     column: anode_hydrogen_flux_mol_m2_s
-    label: Anode hydrogen flux
-    unit: mol/(m² s)
-  - name: N_flux_O2_th_Kath
+  - id: cathode_oxygen_flux
     column: cathode_oxygen_flux_mol_m2_s
-    label: Cathode oxygen flux
-    unit: mol/(m² s)

@@ -25,6 +25,10 @@ def test_predictor_returns_time_aligned_posterior_statistics():
         parameter_scaler=MinMaxScaler(np.array([[0.0, 10.0], [100.0, 200.0]])),
         condition_names=["c1", "c2"],
         parameter_names=["p1", "p2"],
+        conditions={
+            name: ParameterDescriptor(name=name, id=name, label=name, unit="")
+            for name in ("c1", "c2")
+        },
         parameters={
             name: ParameterDescriptor(name=name, id=name, label=name, unit="")
             for name in ("p1", "p2")
@@ -86,6 +90,10 @@ def test_common_latent_samples_preserve_condition_shift():
         parameter_scaler=MinMaxScaler(np.array([[0.0, 1.0], [0.0, 1.0]])),
         condition_names=["c1", "c2"],
         parameter_names=["p1", "p2"],
+        conditions={
+            name: ParameterDescriptor(name=name, id=name, label=name, unit="")
+            for name in ("c1", "c2")
+        },
         parameters={
             name: ParameterDescriptor(name=name, id=name, label=name, unit="")
             for name in ("p1", "p2")
