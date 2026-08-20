@@ -87,6 +87,23 @@ their order; `model.yaml` assigns stable IDs, labels, and units to all model
 conditions and targets; `profile.yaml` contains only profile provenance, its
 time axis, and the mapping from condition IDs to CSV columns.
 
+For example, the cell-voltage condition is connected across the three layers
+as follows:
+
+```text
+CSV column          condition ID       checkpoint name
+cell_voltage_V  ->  cell_voltage   ->  U_cell_V
+```
+
+The `column` value is specific to a CSV file. The `id` is the stable interface
+between `profile.yaml` and `model.yaml`. The `name` in `model.yaml` must match
+the corresponding tensor name stored in the checkpoint exactly.
+
+Profile conditions may appear in any order. The preprocessor restores the
+checkpoint order and ignores additional conditions. For reconstructed targets,
+`id` is a stable export identifier used in tables and diagram IDs; it does not
+join the profile to the model.
+
 ## Installation
 
 Clone VIPR Core and the fuel-cell plugin into the same parent directory:
