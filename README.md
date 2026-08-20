@@ -32,6 +32,15 @@ and packaged presentation metadata.
 
 ## Installation
 
+Clone VIPR Core and the fuel-cell plugin into the same parent directory:
+
+```bash
+git clone https://codebase.helmholtz.cloud/vipr/vipr-core.git
+git clone https://github.com/HW-IT-Solutions/vipr-fuel-cell-plugin.git
+```
+
+Then install VIPR Core and the plugin:
+
 ```bash
 pip install -e './vipr-core'
 pip install -e './vipr-fuel-cell-plugin[test]'
