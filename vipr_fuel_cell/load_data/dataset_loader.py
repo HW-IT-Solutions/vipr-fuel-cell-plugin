@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import csv
-from importlib import resources
 from pathlib import Path
 
 import numpy as np
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from vipr.plugins.discovery.decorators import discover_data_loader
 from vipr.plugins.inference.dataset import DataSet
@@ -47,40 +46,24 @@ class PEMFCDatasetMetadata(BaseModel):
 
 
 class PEMFCDatasetLoaderParams(BaseModel):
-    """Configuration for a curated or user-provided PEMFC CSV dataset."""
+    """Paths for a PEMFC sensor profile and its metadata."""
 
     model_config = ConfigDict(extra="forbid")
 
-    dataset: str | None = Field(
-        default=None,
-        description="Built-in dataset identifier",
-    )
-    data_path: str | None = Field(
-        default=None,
+    data_path: str = Field(
         description="Sensor CSV path, resolved relative to the VIPR config",
     )
-    metadata_path: str | None = Field(
-        default=None,
-        description="Optional metadata YAML associated with data_path",
+    metadata_path: str = Field(
+        description="Metadata YAML path, resolved relative to the VIPR config",
     )
 
-    @model_validator(mode="after")
-    def validate_dataset_source(self):
-        has_dataset = bool(self.dataset)
-        has_data_path = bool(self.data_path)
-        if self.metadata_path and not has_data_path:
-            raise ValueError("metadata_path requires data_path")
-        if has_dataset == has_data_path:
-            raise ValueError("Exactly one of dataset or data_path must be provided")
-        return self
 
-
-def _read_metadata(path) -> PEMFCDatasetMetadata:
+def _read_metadata(path: Path) -> PEMFCDatasetMetadata:
     parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
     return PEMFCDatasetMetadata.model_validate(parsed)
 
 
-def _read_numeric_columns(path) -> dict[str, np.ndarray]:
+def _read_numeric_columns(path: Path) -> dict[str, np.ndarray]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         if not reader.fieldnames:
@@ -100,38 +83,6 @@ def _read_numeric_columns(path) -> dict[str, np.ndarray]:
     }
 
 
-def _bundled_dataset_files(dataset_id: str):
-    root = resources.files("vipr_fuel_cell").joinpath("resources", "datasets")
-    available = sorted(child.name for child in root.iterdir() if child.is_dir())
-    if dataset_id not in available:
-        raise ValueError(
-            f"Unknown built-in PEMFC dataset {dataset_id!r}; "
-            f"available: {', '.join(available)}"
-        )
-    directory = root.joinpath(dataset_id)
-    return directory.joinpath("sensor_data.csv"), directory.joinpath("metadata.yaml")
-
-
-def _resolve_dataset_files(app, params: PEMFCDatasetLoaderParams):
-    if params.data_path:
-        data_path = resolve_required_file(app, params.data_path, "PEMFC sensor CSV")
-        if params.metadata_path:
-            metadata_path = resolve_required_file(
-                app, params.metadata_path, "PEMFC dataset metadata"
-            )
-        else:
-            metadata_path = data_path.with_name("metadata.yaml")
-            if not metadata_path.is_file():
-                raise FileNotFoundError(
-                    "A PEMFC data_path requires metadata_path or a metadata.yaml "
-                    f"next to the CSV: {metadata_path}"
-                )
-        return data_path, metadata_path
-
-    assert params.dataset is not None  # Guaranteed by validate_dataset_source().
-    return _bundled_dataset_files(params.dataset)
-
-
 @discover_data_loader("pemfc_dataset", PEMFCDatasetLoaderParams)
 class PEMFCDatasetLoader(DataLoaderHandler):
     """Load a PEMFC sensor profile and its domain metadata."""
@@ -141,14 +92,12 @@ class PEMFCDatasetLoader(DataLoaderHandler):
 
     def _load_data(self, **kwargs) -> DataSet:
         params = PEMFCDatasetLoaderParams.model_validate(kwargs)
-        data_path, metadata_path = _resolve_dataset_files(self.app, params)
-        for label, path in (
-            ("sensor CSV", data_path),
-            ("metadata YAML", metadata_path),
-        ):
-            if not path.is_file():
-                raise FileNotFoundError(f"PEMFC {label} not found: {path}")
-
+        data_path = resolve_required_file(
+            self.app, params.data_path, "PEMFC sensor CSV"
+        )
+        metadata_path = resolve_required_file(
+            self.app, params.metadata_path, "PEMFC dataset metadata"
+        )
         metadata_definition = _read_metadata(metadata_path)
         columns = _read_numeric_columns(data_path)
         required_columns = [metadata_definition.time.column] + [

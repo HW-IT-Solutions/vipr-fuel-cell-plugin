@@ -72,9 +72,9 @@ simulated operating-profile change:
 - `PEMFCDataCollector` exports parameter summaries, mean trajectories, and
   configured empirical posterior snapshots.
 
-The dataset and model loaders also accept custom files through `data_path`,
-`metadata_path`, and `checkpoint_path`. Relative custom paths are resolved next
-to the VIPR config.
+The dataset loader requires explicit `data_path` and `metadata_path` values.
+The model loader accepts either a named, provisioned model or an explicit
+`checkpoint_path`. Relative file paths are resolved next to the VIPR config.
 For a named model, the loader owns resolution, checksum validation, checkpoint
 loading, scaler validation, and the consistency check between checkpoint names
 and packaged presentation metadata.
@@ -167,15 +167,11 @@ vipr:
 ```
 
 The preprocessing filter is required to select, order, validate, and scale the
-conditions for the loaded cINN. If `metadata.yaml` is next to the sensor CSV,
-`metadata_path` may be omitted. In the metadata, `column` identifies a CSV
-column and `name` identifies the corresponding checkpoint condition. The order
-is arbitrary, but all eleven conditions required by `test_case_1` must be
-present; additional conditions are ignored by its preprocessor.
-
-As a shorthand for packaged profiles, the loader still accepts
-`dataset: operating_profile`. Exactly one of `dataset` or `data_path` must be
-provided, and `metadata_path` is valid only together with `data_path`.
+conditions for the loaded cINN. Both `data_path` and `metadata_path` are
+required. In the metadata, `column` identifies a CSV column and `name`
+identifies the corresponding checkpoint condition. The order is arbitrary,
+but all eleven conditions required by `test_case_1` must be present; additional
+conditions are ignored by its preprocessor.
 
 The example reconstructs all 300 valid sensor-profile steps. Its diagrams show
 only the posterior mean over time; no uncertainty band, anomaly threshold, or

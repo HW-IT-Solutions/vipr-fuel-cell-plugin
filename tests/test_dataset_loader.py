@@ -1,30 +1,15 @@
 from pathlib import Path
 
 import numpy as np
-import pytest
-from pydantic import ValidationError
 
 from tests.helpers import make_app
-from vipr_fuel_cell.load_data.dataset_loader import (
-    PEMFCDatasetLoader,
-    PEMFCDatasetLoaderParams,
-)
+from vipr_fuel_cell.load_data.dataset_loader import PEMFCDatasetLoader
 
 
 def _loader(config_path: Path | None = None) -> PEMFCDatasetLoader:
     loader = object.__new__(PEMFCDatasetLoader)
     loader.app = make_app(config_path)
     return loader
-
-
-def test_built_in_dataset_loads_sensor_profile_and_english_metadata():
-    dataset = _loader()._load_data(dataset="operating_profile")
-
-    assert dataset.x.shape == (301, 11)
-    assert dataset.y.shape == (301, 1)
-    assert dataset.metadata["dataset_id"] == "operating_profile"
-    assert dataset.metadata["time_label"] == "Time"
-    assert "reference_values" not in dataset.metadata
 
 
 def test_packaged_dataset_loads_through_explicit_resource_paths():
@@ -38,20 +23,13 @@ def test_packaged_dataset_loads_through_explicit_resource_paths():
     )
 
     assert dataset.x.shape == (301, 11)
+    assert dataset.y.shape == (301, 1)
     assert dataset.metadata["dataset_id"] == "operating_profile"
+    assert dataset.metadata["time_label"] == "Time"
+    assert "reference_values" not in dataset.metadata
 
 
-def test_packaged_dataset_finds_adjacent_metadata_resource():
-    dataset = _loader()._load_data(
-        data_path=(
-            "@vipr_fuel_cell/resources/datasets/operating_profile/sensor_data.csv"
-        )
-    )
-
-    assert dataset.metadata["dataset_id"] == "operating_profile"
-
-
-def test_custom_dataset_resolves_csv_and_metadata_next_to_config(tmp_path):
+def test_custom_dataset_resolves_files_next_to_config(tmp_path):
     config_path = tmp_path / "config.yaml"
     config_path.write_text("vipr: {}\n", encoding="utf-8")
     (tmp_path / "sensor.csv").write_text(
@@ -74,28 +52,12 @@ conditions:
     loader = _loader(config_path)
     messages = []
     loader.app.log.info = messages.append
-    dataset = loader._load_data(data_path="sensor.csv")
+    dataset = loader._load_data(
+        data_path="sensor.csv",
+        metadata_path="metadata.yaml",
+    )
 
     np.testing.assert_allclose(dataset.x[:, 0], [0.7, 0.6])
     np.testing.assert_allclose(dataset.y[:, 0], [0.0, 0.1])
     assert dataset.metadata["condition_names"] == ["U_cell_V"]
     assert messages[-1].startswith("Loaded PEMFC dataset 'custom_profile' from")
-
-
-@pytest.mark.parametrize(
-    ("parameters", "message"),
-    [
-        ({}, "Exactly one of dataset or data_path must be provided"),
-        (
-            {"dataset": "operating_profile", "data_path": "sensor.csv"},
-            "Exactly one of dataset or data_path must be provided",
-        ),
-        (
-            {"metadata_path": "metadata.yaml"},
-            "metadata_path requires data_path",
-        ),
-    ],
-)
-def test_dataset_source_parameters_are_unambiguous(parameters, message):
-    with pytest.raises(ValidationError, match=message):
-        PEMFCDatasetLoaderParams.model_validate(parameters)
