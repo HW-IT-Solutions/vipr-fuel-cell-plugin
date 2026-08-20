@@ -118,13 +118,8 @@ def load_model_manifest(path: Path) -> PEMFCModelManifest:
     return PEMFCModelManifest.model_validate(parsed)
 
 
-def resolve_artifact_directory(
-    model_id: str, explicit_directory: Path | None = None
-) -> Path:
-    """Resolve a model bundle from an override, deployment root, or checkout."""
-    if explicit_directory is not None:
-        return explicit_directory
-
+def resolve_artifact_directory(model_id: str) -> Path:
+    """Resolve a model bundle from the deployment root or source checkout."""
     configured_root = os.getenv(FUEL_CELL_ROOT_ENV_VAR)
     if configured_root:
         return Path(configured_root).expanduser() / "models" / model_id

@@ -56,16 +56,13 @@ class PEMFCCINNModelLoader(ModelLoaderHandler):
             self.app, params.manifest_path, "PEMFC model manifest"
         )
         manifest = load_model_manifest(manifest_path)
-        explicit_directory = (
-            resolve_required_directory(
+        if params.artifact_dir:
+            artifact_directory = resolve_required_directory(
                 self.app, params.artifact_dir, "PEMFC model artifact directory"
             )
-            if params.artifact_dir
-            else None
-        )
-        artifact_directory = resolve_artifact_directory(
-            manifest.id, explicit_directory
-        )
+        else:
+            artifact_directory = resolve_artifact_directory(manifest.id)
+
         bundle = load_model_bundle(
             manifest=manifest,
             artifact_directory=artifact_directory,
