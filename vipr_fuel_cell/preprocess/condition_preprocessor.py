@@ -21,6 +21,98 @@ class PEMFCConditionPreprocessorParams(BaseModel):
     range_tolerance: float = Field(default=0.0, ge=0.0)
 
 
+def _select_and_order_conditions(data, context, bundle):
+    supplied_ids = context.condition_ids
+    if len(supplied_ids) != data.x.shape[1]:
+        raise ValueError(
+            "DataSet condition_ids metadata does not match the condition matrix"
+        )
+
+    descriptors = [
+        bundle.conditions[name] for name in bundle.condition_names
+    ]
+    missing = [
+        f"{descriptor.id} ({descriptor.name})"
+        for descriptor in descriptors
+        if descriptor.id not in supplied_ids
+    ]
+    if missing:
+        raise ValueError(
+            "Loaded model requires condition IDs missing from the DataSet: "
+            f"{missing}"
+        )
+
+    selected_ids = [descriptor.id for descriptor in descriptors]
+    indices = [supplied_ids.index(identifier) for identifier in selected_ids]
+    conditions = np.asarray(data.x[:, indices], dtype=np.float32)
+    return conditions, selected_ids, descriptors
+
+
+def _handle_invalid_rows(conditions, time, policy, log):
+    valid = np.all(np.isfinite(conditions), axis=1)
+    if time is not None:
+        valid &= np.all(np.isfinite(time), axis=1)
+    invalid_indices = np.flatnonzero(~valid).tolist()
+
+    if invalid_indices and policy == "error":
+        raise ValueError(
+            f"PEMFC input contains non-finite values at rows {invalid_indices}"
+        )
+    if invalid_indices:
+        conditions = conditions[valid]
+        time = time[valid] if time is not None else None
+        log.warning(
+            f"Dropped {len(invalid_indices)} PEMFC time step(s) "
+            "with non-finite conditions"
+        )
+    if not len(conditions):
+        raise ValueError("No valid PEMFC time steps remain after preprocessing")
+
+    return conditions, time, invalid_indices
+
+
+def _check_training_ranges(
+    conditions, descriptors, minmax, policy, tolerance, log
+):
+    below = conditions < (minmax[:, 0] - tolerance)
+    above = conditions > (minmax[:, 1] + tolerance)
+    out_of_range = below | above
+    value_count = int(np.count_nonzero(out_of_range))
+    if not value_count:
+        return 0
+
+    affected = [
+        descriptor.id
+        for index, descriptor in enumerate(descriptors)
+        if np.any(out_of_range[:, index])
+    ]
+    message = (
+        f"Found {value_count} PEMFC condition value(s) outside the "
+        f"training ranges; affected conditions: {affected}"
+    )
+    if policy == "error":
+        raise ValueError(message)
+    if policy == "warn":
+        log.warning(message)
+    return value_count
+
+
+def _build_output_metadata(
+    context, selected_ids, valid_time_steps, invalid_indices, out_of_range_count
+):
+    payload = context.model_dump(mode="python")
+    payload.update(
+        {
+            "condition_ids": selected_ids,
+            "conditions_scaled": True,
+            "valid_time_steps": valid_time_steps,
+            "dropped_time_step_indices": invalid_indices,
+            "out_of_range_value_count": out_of_range_count,
+        }
+    )
+    return PEMFCDatasetContext.model_validate(payload).model_dump(mode="python")
+
+
 class PEMFCConditionPreprocessor:
     """Prepare a sensor-condition matrix for the loaded model."""
 
@@ -39,79 +131,28 @@ class PEMFCConditionPreprocessor:
         )
         context = PEMFCDatasetContext.model_validate(data.metadata)
 
-        supplied_ids = context.condition_ids
-        if len(supplied_ids) != data.x.shape[1]:
-            raise ValueError(
-                "DataSet condition_ids metadata does not match the condition matrix"
-            )
-        ordered_descriptors = [
-            bundle.conditions[name] for name in bundle.condition_names
-        ]
-        missing = [
-            f"{descriptor.id} ({descriptor.name})"
-            for descriptor in ordered_descriptors
-            if descriptor.id not in supplied_ids
-        ]
-        if missing:
-            raise ValueError(
-                "Loaded model requires condition IDs missing from the DataSet: "
-                f"{missing}"
-            )
-        selected_ids = [descriptor.id for descriptor in ordered_descriptors]
-        indices = [supplied_ids.index(identifier) for identifier in selected_ids]
-        raw_conditions = np.asarray(data.x[:, indices], dtype=np.float32)
-        time = np.asarray(data.y, dtype=np.float64) if data.y is not None else None
-
-        valid = np.all(np.isfinite(raw_conditions), axis=1)
-        if time is not None:
-            valid &= np.all(np.isfinite(time), axis=1)
-        invalid_indices = np.flatnonzero(~valid).tolist()
-        if invalid_indices and params.invalid_rows == "error":
-            raise ValueError(
-                f"PEMFC input contains non-finite values at rows {invalid_indices}"
-            )
-        if invalid_indices:
-            raw_conditions = raw_conditions[valid]
-            time = time[valid] if time is not None else None
-            self.app.log.warning(
-                f"Dropped {len(invalid_indices)} PEMFC time step(s) with non-finite conditions"
-            )
-        if not len(raw_conditions):
-            raise ValueError("No valid PEMFC time steps remain after preprocessing")
-
-        minmax = bundle.condition_scaler.minmax
-        tolerance = params.range_tolerance
-        below = raw_conditions < (minmax[:, 0] - tolerance)
-        above = raw_conditions > (minmax[:, 1] + tolerance)
-        out_of_range_mask = below | above
-        out_of_range_count = int(np.count_nonzero(out_of_range_mask))
-        if out_of_range_count:
-            affected = [
-                descriptor.id
-                for index, descriptor in enumerate(ordered_descriptors)
-                if np.any(out_of_range_mask[:, index])
-            ]
-            message = (
-                f"Found {out_of_range_count} PEMFC condition value(s) outside the "
-                f"training ranges; affected conditions: {affected}"
-            )
-            if params.out_of_range == "error":
-                raise ValueError(message)
-            if params.out_of_range == "warn":
-                self.app.log.warning(message)
-
-        scaled = bundle.condition_scaler.transform_numpy(raw_conditions)
-        metadata_payload = context.model_dump(mode="python")
-        metadata_payload.update(
-            {
-                "condition_ids": selected_ids,
-                "conditions_scaled": True,
-                "valid_time_steps": int(len(scaled)),
-                "dropped_time_step_indices": invalid_indices,
-                "out_of_range_value_count": out_of_range_count,
-            }
+        conditions, selected_ids, descriptors = _select_and_order_conditions(
+            data, context, bundle
         )
-        metadata = PEMFCDatasetContext.model_validate(metadata_payload).model_dump(
-            mode="python"
+        time = np.asarray(data.y, dtype=np.float64) if data.y is not None else None
+        conditions, time, invalid_indices = _handle_invalid_rows(
+            conditions, time, params.invalid_rows, self.app.log
+        )
+        out_of_range_count = _check_training_ranges(
+            conditions,
+            descriptors,
+            bundle.condition_scaler.minmax,
+            params.out_of_range,
+            params.range_tolerance,
+            self.app.log,
+        )
+
+        scaled = bundle.condition_scaler.transform_numpy(conditions)
+        metadata = _build_output_metadata(
+            context,
+            selected_ids,
+            len(scaled),
+            invalid_indices,
+            out_of_range_count,
         )
         return data.copy_with_updates(x=scaled, y=time, metadata=metadata)
