@@ -47,7 +47,7 @@ namespaces = false
 
 [tool.setuptools.package-data]
 vipr_fuel_cell = [
-    "inversion/examples/configs/*.yaml",
+    "examples/configs/*.yaml",
     "resources/README.md",
     "resources/datasets/*/*.csv",
     "resources/datasets/*/*.yaml",
