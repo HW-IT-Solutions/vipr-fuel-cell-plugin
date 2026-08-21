@@ -157,4 +157,6 @@ class PEMFCDatasetLoader(DataLoaderHandler):
             f"Loaded PEMFC dataset {profile.id!r} from {data_path} with "
             f"{len(time)} time steps and {len(condition_ids)} conditions"
         )
+        # VIPR has no separate coordinate field. Store time in y so x[i] and
+        # y[i] always describe the same sensor-profile step.
         return DataSet(x=conditions, y=time[:, None], metadata=metadata)

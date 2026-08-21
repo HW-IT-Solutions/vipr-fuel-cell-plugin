@@ -45,7 +45,7 @@ def _select_and_order_conditions(data, context, bundle):
     selected_ids = [descriptor.id for descriptor in descriptors]
     indices = [supplied_ids.index(identifier) for identifier in selected_ids]
     conditions = np.asarray(data.x[:, indices], dtype=np.float32)
-    return conditions, selected_ids, descriptors
+    return conditions, selected_ids
 
 
 def _handle_invalid_rows(conditions, time, policy, log):
@@ -72,33 +72,37 @@ def _handle_invalid_rows(conditions, time, policy, log):
 
 
 def _check_training_ranges(
-    conditions, descriptors, minmax, policy, tolerance, log
+    conditions, condition_ids, minmax, policy, tolerance, log
 ):
     below = conditions < (minmax[:, 0] - tolerance)
     above = conditions > (minmax[:, 1] + tolerance)
     out_of_range = below | above
-    value_count = int(np.count_nonzero(out_of_range))
-    if not value_count:
+    out_of_range_value_count = int(np.count_nonzero(out_of_range))
+    if not out_of_range_value_count:
         return 0
 
     affected = [
-        descriptor.id
-        for index, descriptor in enumerate(descriptors)
+        condition_id
+        for index, condition_id in enumerate(condition_ids)
         if np.any(out_of_range[:, index])
     ]
     message = (
-        f"Found {value_count} PEMFC condition value(s) outside the "
+        f"Found {out_of_range_value_count} PEMFC condition value(s) outside the "
         f"training ranges; affected conditions: {affected}"
     )
     if policy == "error":
         raise ValueError(message)
     if policy == "warn":
         log.warning(message)
-    return value_count
+    return out_of_range_value_count
 
 
 def _build_output_metadata(
-    context, selected_ids, valid_time_steps, invalid_indices, out_of_range_count
+    context,
+    selected_ids,
+    valid_time_steps,
+    invalid_indices,
+    out_of_range_value_count,
 ):
     payload = context.model_dump(mode="python")
     payload.update(
@@ -107,7 +111,7 @@ def _build_output_metadata(
             "conditions_scaled": True,
             "valid_time_steps": valid_time_steps,
             "dropped_time_step_indices": invalid_indices,
-            "out_of_range_value_count": out_of_range_count,
+            "out_of_range_value_count": out_of_range_value_count,
         }
     )
     return PEMFCDatasetContext.model_validate(payload).model_dump(mode="python")
@@ -125,22 +129,28 @@ class PEMFCConditionPreprocessor:
         parameters=PEMFCConditionPreprocessorParams,
     )
     def preprocess_conditions(self, data: DataSet, **kwargs) -> DataSet:
+        # Validate external inputs at the VIPR filter boundary.
         params = PEMFCConditionPreprocessorParams.model_validate(kwargs)
         bundle = as_pemfc_bundle(
             getattr(getattr(self.app, "inference", None), "model", None)
         )
         context = PEMFCDatasetContext.model_validate(data.metadata)
 
-        conditions, selected_ids, descriptors = _select_and_order_conditions(
+        # Map profile IDs to the exact condition order stored in the checkpoint.
+        conditions, selected_ids = _select_and_order_conditions(
             data, context, bundle
         )
         time = np.asarray(data.y, dtype=np.float64) if data.y is not None else None
+
+        # Remove rows containing NaN or infinity from conditions and time together.
         conditions, time, invalid_indices = _handle_invalid_rows(
             conditions, time, params.invalid_rows, self.app.log
         )
-        out_of_range_count = _check_training_ranges(
+
+        # Scaler bounds use raw input units, so check values before scaling.
+        out_of_range_value_count = _check_training_ranges(
             conditions,
-            descriptors,
+            selected_ids,
             bundle.condition_scaler.minmax,
             params.out_of_range,
             params.range_tolerance,
@@ -148,11 +158,13 @@ class PEMFCConditionPreprocessor:
         )
 
         scaled = bundle.condition_scaler.transform_numpy(conditions)
+
+        # Record preprocessing decisions for prediction and result collection.
         metadata = _build_output_metadata(
             context,
             selected_ids,
             len(scaled),
             invalid_indices,
-            out_of_range_count,
+            out_of_range_value_count,
         )
         return data.copy_with_updates(x=scaled, y=time, metadata=metadata)
