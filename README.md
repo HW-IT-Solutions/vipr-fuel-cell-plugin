@@ -84,6 +84,12 @@ The [architecture guide](docs/architecture.md) traces the data and model through
 these five steps and explains the VIPR handlers, preprocessing filter, and
 result hook used by the plugin.
 
+## Acknowledgements
+
+The PEMFC use case was developed with contributions from Fraunhofer Institute
+for Machine Tools and Forming Technology IWU and Helm & Walter IT-Solutions
+GmbH (SaxonyAI).
+
 ## License
 
 The source code is licensed under the GNU Lesser General Public License v3.0 or

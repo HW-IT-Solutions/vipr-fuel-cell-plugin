@@ -1,9 +1,8 @@
 # Authors
 
-- Sascha Creutzburg <sascha.creutzburg@saxony.ai>
-- Nico Mothes <nico.mothes@saxony.ai>
-- Rico Löser <Rico.Loeser@iwu.fraunhofer.de>
-
-Authorship does not by itself determine ownership of copyright or other rights.
-Those rights remain subject to the applicable employment, project, and customer
-agreements.
+- Sascha Creutzburg <sascha.creutzburg@saxony.ai> — Helm & Walter IT-Solutions
+  GmbH (SaxonyAI)
+- Nico Mothes <nico.mothes@saxony.ai> — Helm & Walter IT-Solutions GmbH
+  (SaxonyAI)
+- Rico Löser <Rico.Loeser@iwu.fraunhofer.de> — Fraunhofer Institute for
+  Machine Tools and Forming Technology IWU
