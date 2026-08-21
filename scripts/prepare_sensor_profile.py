@@ -27,7 +27,7 @@ COLUMNS = {
 
 
 def convert(source: Path, destination: Path) -> None:
-    """Convert the selected model signals without changing their values."""
+    """Convert model signals and add their zero-based simulation steps."""
     with h5py.File(source, "r") as handle:
         group = handle["out/Data"]
         values = {
@@ -38,6 +38,12 @@ def convert(source: Path, destination: Path) -> None:
     lengths = {len(column) for column in values.values()}
     if len(lengths) != 1:
         raise ValueError(f"Inconsistent sensor column lengths: {sorted(lengths)}")
+
+    sample_count = lengths.pop()
+    values = {
+        "simulation_step": np.arange(sample_count, dtype=np.int64),
+        **values,
+    }
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", encoding="utf-8", newline="") as handle:

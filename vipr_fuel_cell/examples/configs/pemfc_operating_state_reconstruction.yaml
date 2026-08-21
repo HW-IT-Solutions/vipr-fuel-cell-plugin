@@ -34,7 +34,7 @@ vipr:
         time_batch_size: 8
         common_latent_samples: true
         # One illustrative stable operating point before the pressure change.
-        # The index is zero-based on the valid, preprocessed time axis.
+        # Index 40 maps to simulation step 41 after dropping the initial row.
         posterior_snapshot_indices: [40]
         histogram_bins: 30
     postprocess:

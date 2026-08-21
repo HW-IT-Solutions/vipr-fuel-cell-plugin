@@ -72,6 +72,9 @@ def make_plot(
     time_value = _scalar(np.asarray(time_value))
     time_label = str(_scalar(np.asarray(time_label)))
     time_unit = str(_scalar(np.asarray(time_unit)))
+    axis_value = f"{time_label} {float(time_value):g}"
+    if time_unit:
+        axis_value += f" {time_unit}"
 
     edges_array = np.asarray(bin_edges, dtype=float)
     density_array = np.asarray(densities, dtype=float)
@@ -122,11 +125,8 @@ def make_plot(
     for axis in flat_axes[len(labels) :]:
         axis.set_visible(False)
 
-    time_text = f"{float(time_value):g} {time_unit}".strip()
     fig.suptitle(
-        "Empirical PEMFC posterior distributions\n"
-        f"valid time-step index {int(valid_time_step_index)}, "
-        f"{time_label} = {time_text}",
+        f"Empirical PEMFC posterior distributions\n{axis_value}",
         fontsize=13,
     )
     fig.legend(
@@ -142,11 +142,11 @@ def make_plot(
             ),
         ],
         loc="upper center",
-        bbox_to_anchor=(0.5, 0.945),
+        bbox_to_anchor=(0.5, 0.925),
         ncol=2,
         frameon=False,
     )
-    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.89))
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
     return fig
 
 

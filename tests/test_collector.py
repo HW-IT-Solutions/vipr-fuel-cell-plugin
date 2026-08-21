@@ -19,9 +19,9 @@ def test_collector_builds_table_and_parameter_diagram():
     collector = PEMFCDataCollector(app)
     prediction = {
         "prediction_type": "pemfc_cinn_posterior",
-        "time": [0.0, 0.1],
-        "time_label": "tout",
-        "time_unit": "s",
+        "time": [1.0, 2.0],
+        "time_label": "Simulation step",
+        "time_unit": "",
         "parameter_names": ["T_In_An_Ist"],
         "parameters": {
             "T_In_An_Ist": {
@@ -47,7 +47,7 @@ def test_collector_builds_table_and_parameter_diagram():
         "snapshots": [
             {
                 "valid_time_step_index": 0,
-                "time": 0.0,
+                "time": 1.0,
                 "histograms": {
                     "T_In_An_Ist": {
                         "bin_edges": [338.0, 340.0, 342.0],
@@ -83,15 +83,19 @@ def test_collector_builds_table_and_parameter_diagram():
     assert item.diagrams[0].title == "Anode inlet temperature"
     assert item.diagrams[0].id == "pemfc_anode_inlet_temperature"
     assert item.diagrams[0].data["posterior_mean"] == [340.0, 341.0]
+    assert item.diagrams[0].metadata.x_label == "Simulation step"
     assert [series.label for series in item.diagrams[0].series] == ["Posterior mean"]
     assert len(item.images) == 1
     assert item.images[0].format == "svg"
     assert item.images[0].data
+    assert item.images[0].title == (
+        "PEMFC posterior distributions at Simulation step 1"
+    )
     histogram_table = item.find_table_by_id("pemfc_posterior_snapshot_histograms")
     assert histogram_table is not None
     assert len(histogram_table.data) == 2
     assert histogram_table.data[0]["posterior_mean"] == 340.0
-    image_key = "0:pemfc_posterior_distributions_step_0"
+    image_key = "0:pemfc_posterior_distributions_index_0"
     assert image_key in app.datacollector._transient_plot_scripts
     assert image_key in app.datacollector._transient_plot_data
     assert app.datacollector._transient_plot_scripts[image_key]["data_format"] == "npz"

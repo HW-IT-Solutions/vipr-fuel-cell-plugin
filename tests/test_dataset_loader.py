@@ -40,8 +40,10 @@ def test_packaged_dataset_loads_through_explicit_resource_paths():
 
     assert dataset.x.shape == (301, 11)
     assert dataset.y.shape == (301, 1)
+    np.testing.assert_array_equal(dataset.y[:, 0], np.arange(301))
     assert dataset.metadata["dataset_id"] == "operating_profile"
-    assert dataset.metadata["time_label"] == "Time"
+    assert dataset.metadata["time_label"] == "Simulation step"
+    assert dataset.metadata["time_unit"] == ""
     assert "reference_values" not in dataset.metadata
 
 

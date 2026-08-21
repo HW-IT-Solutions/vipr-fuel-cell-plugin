@@ -13,6 +13,15 @@ from vipr_fuel_cell.predict.posterior_result import (
 )
 
 
+def _label_with_unit(label: str, unit: str) -> str:
+    return f"{label} [{unit}]" if unit else label
+
+
+def _format_axis_value(label: str, value: float, unit: str) -> str:
+    suffix = f" {unit}" if unit else ""
+    return f"{label} {float(value):g}{suffix}"
+
+
 def _posterior_snapshot_plot_data(
     prediction: PEMFCPosteriorResult,
     snapshot: PosteriorSnapshot,
@@ -105,8 +114,10 @@ class PEMFCDataCollector:
                 )
             )
             diagram.set_metadata(
-                x_label=f"{prediction.time_label} [{prediction.time_unit}]",
-                y_label=f"{label} [{descriptor.unit}]",
+                x_label=_label_with_unit(
+                    prediction.time_label, prediction.time_unit
+                ),
+                y_label=_label_with_unit(label, descriptor.unit),
             )
 
         if prediction.snapshots:
@@ -119,14 +130,18 @@ class PEMFCDataCollector:
                 figure = make_posterior_snapshot_plot(**plot_data)
                 image_id = (
                     "pemfc_posterior_distributions_"
-                    f"step_{snapshot.valid_time_step_index}"
+                    f"index_{snapshot.valid_time_step_index}"
                 )
                 try:
                     (
                         collector.image(
                             image_id,
                             "PEMFC posterior distributions at "
-                            f"valid time-step {snapshot.valid_time_step_index}",
+                            + _format_axis_value(
+                                prediction.time_label,
+                                snapshot.time,
+                                prediction.time_unit,
+                            ),
                         )
                         .set_plot_script(
                             make_posterior_snapshot_plot,

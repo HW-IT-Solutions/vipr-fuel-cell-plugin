@@ -10,9 +10,9 @@ source:
   publication: Conditional invertible neural network for online-capable monitoring of polymer electrolyte membrane fuel cells
   doi: https://doi.org/10.1016/j.ijhydene.2026.155929
 time:
-  column: time_s
-  label: Time
-  unit: s
+  column: simulation_step
+  label: Simulation step
+  unit: ""
 conditions:
   - id: cell_voltage
     column: cell_voltage_V
