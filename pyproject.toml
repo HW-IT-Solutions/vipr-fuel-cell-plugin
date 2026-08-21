@@ -51,7 +51,6 @@ vipr_fuel_cell = [
     "resources/README.md",
     "resources/datasets/*/*.csv",
     "resources/datasets/*/*.yaml",
-    "resources/models/*/*.yaml",
 ]
 
 [tool.pytest.ini_options]

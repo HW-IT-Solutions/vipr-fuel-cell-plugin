@@ -38,8 +38,8 @@ vipr --config \
   inference run
 ```
 
-The example uses packaged sensor data and metadata. Its verified checkpoint and
-scalers are stored in `models/test_case_1/`; see
+The example uses packaged sensor data and metadata. Its complete verified model
+bundle is stored in `models/test_case_1/`; see
 [`models/README.md`](models/README.md) for provisioning details.
 To run the plugin with your own sensor profile or model bundle, follow the
 [usage and configuration guide](docs/usage.md).
@@ -72,7 +72,7 @@ The plugin follows VIPR's five-step inference workflow:
 ```mermaid
 flowchart LR
     DATA["sensor CSV<br/>and profile"] --> LOAD_DATA["1. Load data"]
-    MODEL["model manifest<br/>and artifacts"] --> LOAD_MODEL["2. Load model"]
+    MODEL["model bundle<br/>manifest, checkpoint and scalers"] --> LOAD_MODEL["2. Load model"]
     LOAD_DATA --> PREPROCESS["3. Preprocess<br/>Select, validate and scale conditions"]
     LOAD_MODEL --> PREPROCESS
     PREPROCESS --> PREDICT["4. Predict<br/>Sample posterior with inverse cINN"]

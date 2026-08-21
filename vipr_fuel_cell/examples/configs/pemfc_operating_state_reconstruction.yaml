@@ -1,6 +1,6 @@
 # Uncertainty-aware reconstruction of PEMFC operating parameters from a
-# packaged sensor profile. No machine-specific paths or model registry are
-# required.
+# packaged sensor profile and the verified model bundle in this repository.
+# No model registry is required.
 vipr:
   inference:
     filters:
@@ -20,7 +20,7 @@ vipr:
     load_model:
       handler: pemfc_cinn
       parameters:
-        manifest_path: "@vipr_fuel_cell/resources/models/test_case_1/model.yaml"
+        model_dir: ../../../models/test_case_1
         device: cpu
     preprocess:
       handler: ""

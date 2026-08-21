@@ -9,7 +9,7 @@ import yaml
 from pydantic import ValidationError
 
 from tests.helpers import make_app
-from vipr_fuel_cell.load_model import artifacts
+from vipr_fuel_cell import paths as plugin_paths
 from vipr_fuel_cell.load_model.cinn_loader import PEMFCCINNModelLoader
 from vipr_fuel_cell.load_model.cinn_network import PEMFCCINN
 from vipr_fuel_cell.load_model.manifest import (
@@ -59,16 +59,16 @@ def _manifest_payload(artifact_hashes: dict[str, str]) -> dict:
     }
 
 
-def _write_model_bundle(tmp_path: Path) -> tuple[Path, Path]:
-    artifact_dir = tmp_path / "artifacts"
-    artifact_dir.mkdir()
+def _write_model_bundle(tmp_path: Path) -> Path:
+    model_dir = tmp_path / "model"
+    model_dir.mkdir()
     model = PEMFCCINN(
         parameter_names=["p1", "p2"],
         condition_names=["c1", "c2", "c3"],
         n_blocks=1,
         subnet_hidden_size=4,
     )
-    checkpoint_path = artifact_dir / "checkpoint.ckpt"
+    checkpoint_path = model_dir / "checkpoint.ckpt"
     torch.save(
         {
             "hyper_parameters": {
@@ -81,32 +81,29 @@ def _write_model_bundle(tmp_path: Path) -> tuple[Path, Path]:
         },
         checkpoint_path,
     )
-    (artifact_dir / "scaler_x.json").write_text(
+    (model_dir / "scaler_x.json").write_text(
         json.dumps({"feature_range": [0, 1], "minmax": [[0, 1], [10, 20]]}),
         encoding="utf-8",
     )
-    (artifact_dir / "scaler_y.json").write_text(
-        json.dumps(
-            {"feature_range": [0, 1], "minmax": [[0, 1], [0, 2], [-1, 1]]}
-        ),
+    (model_dir / "scaler_y.json").write_text(
+        json.dumps({"feature_range": [0, 1], "minmax": [[0, 1], [0, 2], [-1, 1]]}),
         encoding="utf-8",
     )
-    hashes = {path.name: _sha256(path) for path in artifact_dir.iterdir()}
-    manifest_path = tmp_path / "model.yaml"
-    manifest_path.write_text(
+    hashes = {path.name: _sha256(path) for path in model_dir.iterdir()}
+    (model_dir / "model.yaml").write_text(
         yaml.safe_dump(_manifest_payload(hashes), sort_keys=False),
         encoding="utf-8",
     )
-    return manifest_path, artifact_dir
+    return model_dir
 
 
 @pytest.mark.integration
-def test_packaged_manifest_loads_verified_artifacts_and_semantic_metadata():
+def test_local_model_bundle_loads_verified_artifacts_and_semantic_metadata():
     loader = object.__new__(PEMFCCINNModelLoader)
     loader.app = make_app()
 
     bundle = loader._load_model(
-        manifest_path="@vipr_fuel_cell/resources/models/test_case_1/model.yaml",
+        model_dir="models/test_case_1",
         device="cpu",
     )
 
@@ -116,11 +113,8 @@ def test_packaged_manifest_loads_verified_artifacts_and_semantic_metadata():
     assert bundle.parameters["T_In_An_Ist"].unit == "K"
 
 
-def test_packaged_model_manifest_defines_complete_contract():
-    path = (
-        Path(__file__).parents[1]
-        / "vipr_fuel_cell/resources/models/test_case_1/model.yaml"
-    )
+def test_model_manifest_defines_complete_contract():
+    path = Path(__file__).parents[1] / "models/test_case_1/model.yaml"
     manifest = load_model_manifest(path)
 
     assert manifest.id == "test_case_1"
@@ -137,9 +131,7 @@ def test_packaged_model_manifest_defines_complete_contract():
         ("sha256", "not-a-hash", "64 hexadecimal"),
     ],
 )
-def test_manifest_rejects_unsafe_identifiers_and_artifacts(
-    field, value, message
-):
+def test_manifest_rejects_unsafe_identifiers_and_artifacts(field, value, message):
     payload = _manifest_payload(
         {
             "checkpoint.ckpt": "a" * 64,
@@ -156,26 +148,51 @@ def test_manifest_rejects_unsafe_identifiers_and_artifacts(
         PEMFCModelManifest.model_validate(payload)
 
 
-def test_installed_package_requires_an_explicit_artifact_root(
-    tmp_path, monkeypatch
-):
-    monkeypatch.delenv(artifacts.FUEL_CELL_ROOT_ENV_VAR, raising=False)
-    monkeypatch.setattr(artifacts, "_PROJECT_ROOT", tmp_path / "site-packages")
+def test_missing_model_directory_reports_resolved_path(tmp_path):
+    config_path = tmp_path / "configs/example.yaml"
+    expected = tmp_path / "configs/models/test_case_1"
 
-    with pytest.raises(FileNotFoundError, match="artifact_dir"):
-        artifacts.resolve_artifact_directory("test_case_1")
+    with pytest.raises(FileNotFoundError, match=str(expected)):
+        plugin_paths.resolve_model_directory(
+            make_app(config_path),
+            "models/test_case_1",
+        )
 
 
-def test_explicit_manifest_and_artifact_directory_load_model(tmp_path):
-    manifest_path, artifact_dir = _write_model_bundle(tmp_path)
+def test_model_directory_is_resolved_relative_to_configuration(tmp_path):
+    config_directory = tmp_path / "configs"
+    model_dir = config_directory / "models/test_case_1"
+    model_dir.mkdir(parents=True)
+
+    resolved = plugin_paths.resolve_model_directory(
+        make_app(config_directory / "example.yaml"),
+        "models/test_case_1",
+    )
+
+    assert resolved == model_dir
+
+
+def test_absolute_model_directory_is_used_directly(tmp_path):
+    model_dir = tmp_path / "models/test_case_1"
+    model_dir.mkdir(parents=True)
+
+    resolved = plugin_paths.resolve_model_directory(
+        make_app(tmp_path / "elsewhere/example.yaml"),
+        str(model_dir),
+    )
+
+    assert resolved == model_dir
+
+
+def test_explicit_model_directory_loads_complete_bundle(tmp_path):
+    model_dir = _write_model_bundle(tmp_path)
     config_path = tmp_path / "config.yaml"
     config_path.write_text("vipr: {}\n", encoding="utf-8")
     loader = object.__new__(PEMFCCINNModelLoader)
     loader.app = make_app(config_path)
 
     bundle = loader._load_model(
-        manifest_path=manifest_path.name,
-        artifact_dir=artifact_dir.name,
+        model_dir=model_dir.name,
         device="cpu",
     )
 

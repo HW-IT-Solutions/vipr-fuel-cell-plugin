@@ -7,13 +7,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from vipr.plugins.discovery.decorators import discover_model_loader
 from vipr.plugins.inference.handlers.model_loader import ModelLoaderHandler
-from vipr_fuel_cell.load_model.artifacts import (
-    load_model_bundle,
-    resolve_artifact_directory,
-)
+from vipr_fuel_cell.load_model.artifacts import load_model_bundle
 from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle
 from vipr_fuel_cell.load_model.manifest import load_model_manifest
-from vipr_fuel_cell.paths import resolve_required_directory, resolve_required_file
+from vipr_fuel_cell.paths import resolve_model_directory
 
 
 class PEMFCCINNModelLoaderParams(BaseModel):
@@ -21,14 +18,9 @@ class PEMFCCINNModelLoaderParams(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    manifest_path: str = Field(
-        description="Model manifest path, resolved relative to the VIPR config",
-    )
-    artifact_dir: str | None = Field(
-        default=None,
+    model_dir: str = Field(
         description=(
-            "Optional artifact directory containing the checkpoint and scalers; "
-            "otherwise the deployment root or source checkout is used"
+            "Directory containing model.yaml, the checkpoint, and both scalers"
         ),
     )
     device: str = Field(default="cpu")
@@ -51,26 +43,22 @@ class PEMFCCINNModelLoader(ModelLoaderHandler):
     def _load_model(self, **kwargs) -> PEMFCCINNBundle:
         params = PEMFCCINNModelLoaderParams.model_validate(kwargs)
         device = _select_device(params.device)
-        manifest_path = resolve_required_file(
-            self.app, params.manifest_path, "PEMFC model manifest"
-        )
+        model_directory = resolve_model_directory(self.app, params.model_dir)
+        manifest_path = model_directory / "model.yaml"
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"PEMFC model manifest not found: {manifest_path}")
         manifest = load_model_manifest(manifest_path)
-        if params.artifact_dir:
-            artifact_directory = resolve_required_directory(
-                self.app, params.artifact_dir, "PEMFC model artifact directory"
-            )
-        else:
-            artifact_directory = resolve_artifact_directory(manifest.id)
 
         bundle = load_model_bundle(
             manifest=manifest,
-            artifact_directory=artifact_directory,
+            model_directory=model_directory,
             device=device,
         )
 
         self.app.log.info(
             f"Loaded PEMFC cINN {manifest.id!r} with "
             f"{len(bundle.condition_names)} conditions and "
-            f"{len(bundle.parameter_names)} reconstructed parameters on {device}"
+            f"{len(bundle.parameter_names)} reconstructed parameters from "
+            f"{model_directory} on {device}"
         )
         return bundle

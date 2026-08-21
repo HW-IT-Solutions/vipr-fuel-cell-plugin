@@ -1,7 +1,8 @@
 # Model and data notice
 
 The source code is licensed as declared in `pyproject.toml`. The trained cINN
-checkpoint is versioned with Git LFS, and its scalers are stored as regular Git
-objects. Their redistribution terms must be confirmed before this repository is
-made public. The bundled PEMFC sensor profile is a separate research artifact;
-its redistribution terms must likewise be confirmed before publication.
+model bundle under `models/test_case_1/` contains its manifest, checkpoint, and
+scalers; the checkpoint is versioned with Git LFS. The bundle's redistribution
+terms must be confirmed before this repository is made public. The bundled
+PEMFC sensor profile is a separate research artifact; its redistribution terms
+must likewise be confirmed before publication.

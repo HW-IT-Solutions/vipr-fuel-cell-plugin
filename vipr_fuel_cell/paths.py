@@ -20,12 +20,16 @@ def resolve_required_file(app, value: str, label: str) -> Path:
     return resolved
 
 
-def resolve_required_directory(app, value: str, label: str) -> Path:
-    """Resolve an external directory relative to the active VIPR config."""
-    path = Path(value).expanduser()
-    if not path.is_absolute():
-        path = config_base_dir(app) / path
-    path = path.resolve()
-    if not path.is_dir():
-        raise FileNotFoundError(f"Could not resolve {label}: {value!r}")
-    return path
+def resolve_model_directory(app, value: str) -> Path:
+    """Resolve a model directory relative to the active VIPR configuration."""
+    configured = Path(value).expanduser()
+    if not configured.is_absolute():
+        configured = config_base_dir(app) / configured
+    resolved = configured.resolve()
+    if not resolved.is_dir():
+        raise FileNotFoundError(
+            f"Could not resolve PEMFC model directory {value!r} as "
+            f"{str(resolved)!r}. Set model_dir to the downloaded model bundle "
+            "directory."
+        )
+    return resolved

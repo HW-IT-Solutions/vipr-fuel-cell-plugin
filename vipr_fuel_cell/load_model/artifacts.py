@@ -1,8 +1,7 @@
-"""Resolve, verify, and load complete PEMFC cINN model bundles."""
+"""Verify and load complete PEMFC cINN model bundles."""
 
 from __future__ import annotations
 
-import os
 from hashlib import sha256
 from pathlib import Path
 
@@ -16,26 +15,6 @@ from vipr_fuel_cell.load_model.manifest import (
 )
 from vipr_fuel_cell.load_model.scaler import MinMaxScaler
 
-FUEL_CELL_ROOT_ENV_VAR = "VIPR_FUEL_CELL_ROOT_DIR"
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-
-def resolve_artifact_directory(model_id: str) -> Path:
-    """Resolve a model bundle from the deployment root or source checkout."""
-    configured_root = os.getenv(FUEL_CELL_ROOT_ENV_VAR)
-    if configured_root:
-        return Path(configured_root).expanduser() / "models" / model_id
-
-    repository_directory = _PROJECT_ROOT / "models" / model_id
-    if repository_directory.is_dir():
-        return repository_directory
-
-    raise FileNotFoundError(
-        f"PEMFC model {model_id!r} is not provisioned. Set "
-        f"{FUEL_CELL_ROOT_ENV_VAR} to a directory containing "
-        f"models/{model_id}/, or configure artifact_dir explicitly."
-    )
-
 
 def _file_sha256(path: Path) -> str:
     digest = sha256()
@@ -46,7 +25,7 @@ def _file_sha256(path: Path) -> str:
 
 
 def verify_artifacts(
-    manifest: PEMFCModelManifest, artifact_directory: Path
+    manifest: PEMFCModelManifest, model_directory: Path
 ) -> tuple[Path, Path, Path]:
     """Return verified checkpoint, parameter-scaler, and condition-scaler paths."""
     descriptors = (
@@ -54,11 +33,11 @@ def verify_artifacts(
         manifest.artifacts.parameter_scaler,
         manifest.artifacts.condition_scaler,
     )
-    paths = tuple(artifact_directory / item.filename for item in descriptors)
+    paths = tuple(model_directory / item.filename for item in descriptors)
     missing = [path.name for path in paths if not path.is_file()]
     if missing:
         raise FileNotFoundError(
-            f"PEMFC model {manifest.id!r} is incomplete in {artifact_directory}; "
+            f"PEMFC model {manifest.id!r} is incomplete in {model_directory}; "
             f"missing: {missing}. See models/README.md for provisioning instructions."
         )
 
@@ -154,12 +133,12 @@ def _load_bundle_from_paths(
 def load_model_bundle(
     *,
     manifest: PEMFCModelManifest,
-    artifact_directory: Path,
+    model_directory: Path,
     device: torch.device,
 ) -> PEMFCCINNBundle:
     """Load a complete, verified cINN bundle described by one manifest."""
     checkpoint, parameter_scaler, condition_scaler = verify_artifacts(
-        manifest, artifact_directory
+        manifest, model_directory
     )
     return _load_bundle_from_paths(
         checkpoint_path=checkpoint,

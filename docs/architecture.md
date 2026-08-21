@@ -10,8 +10,7 @@ handlers, a preprocessing filter, and a result-collection hook.
 flowchart TD
     SENSOR["sensor_data.csv<br/>raw conditioning quantities"]
     PROFILE["profile.yaml<br/>CSV columns to condition IDs"]
-    MANIFEST["model.yaml<br/>condition and target descriptions"]
-    ARTIFACTS["model artifacts<br/>checkpoint and two scalers"]
+    MODEL_DIR["model bundle<br/>model.yaml, checkpoint and two scalers"]
 
     subgraph LOAD_DATA["1. Load data"]
         DATA_LOADER["pemfc_dataset<br/>read CSV and map condition IDs"]
@@ -48,8 +47,7 @@ flowchart TD
 
     SENSOR --> DATA_LOADER
     PROFILE --> DATA_LOADER
-    MANIFEST --> MODEL_LOADER
-    ARTIFACTS --> MODEL_LOADER
+    MODEL_DIR --> MODEL_LOADER
     DATASET --> SELECT
     BUNDLE --> SELECT
     SCALE --> INVERT

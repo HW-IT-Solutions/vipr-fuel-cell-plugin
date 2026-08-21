@@ -69,7 +69,7 @@ does not join the profile to the model.
 The packaged files are:
 
 - [`profile.yaml`](../vipr_fuel_cell/resources/datasets/operating_profile/profile.yaml)
-- [`model.yaml`](../vipr_fuel_cell/resources/models/test_case_1/model.yaml)
+- [`model.yaml`](../models/test_case_1/model.yaml)
 
 See [usage and configuration](usage.md) to connect custom profiles or model
 bundles.
