@@ -5,18 +5,21 @@ from __future__ import annotations
 from time import perf_counter
 
 import numpy as np
-import torch
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from vipr.plugins.discovery.decorators import discover_predictor
 from vipr.plugins.inference.handlers.predictor import PredictorHandler
 from vipr_fuel_cell.load_data.dataset_context import PEMFCDatasetContext
+from vipr_fuel_cell.load_model.bundle import PEMFCCINNBundle, as_pemfc_bundle
 from vipr_fuel_cell.predict.posterior_result import (
     PEMFCPosteriorMetadata,
     PEMFCPosteriorResult,
-    quantile_key,
 )
-from vipr_fuel_cell.load_model.bundle import as_pemfc_bundle
+from vipr_fuel_cell.predict.posterior_sampling import (
+    PosteriorAccumulator,
+    PosteriorSampler,
+    build_posterior_snapshot,
+)
 
 
 class PEMFCPosteriorPredictorParams(BaseModel):
@@ -56,6 +59,73 @@ class PEMFCPosteriorPredictorParams(BaseModel):
         return normalized
 
 
+def _validate_prediction_inputs(dataset, bundle, params):
+    context = PEMFCDatasetContext.model_validate(dataset.metadata)
+    if not context.conditions_scaled:
+        raise ValueError(
+            "PEMFC conditions are not scaled; enable PEMFCConditionPreprocessor"
+        )
+    if dataset.x.shape[1] != len(bundle.condition_names):
+        raise ValueError(
+            f"Model expects {len(bundle.condition_names)} conditions, "
+            f"DataSet provides {dataset.x.shape[1]}"
+        )
+
+    time = (
+        np.asarray(dataset.y[:, 0], dtype=np.float64)
+        if dataset.y is not None
+        else np.arange(dataset.batch_size, dtype=np.float64)
+    )
+    invalid_snapshot_indices = [
+        index
+        for index in params.posterior_snapshot_indices
+        if index >= dataset.batch_size
+    ]
+    if invalid_snapshot_indices:
+        raise ValueError(
+            "posterior_snapshot_indices are outside the valid, preprocessed "
+            f"time axis of length {dataset.batch_size}: {invalid_snapshot_indices}"
+        )
+    return context, time
+
+
+def _build_posterior_result(
+    *,
+    context: PEMFCDatasetContext,
+    bundle: PEMFCCINNBundle,
+    params: PEMFCPosteriorPredictorParams,
+    time: np.ndarray,
+    statistics: dict[str, dict],
+    snapshots: dict[int, dict],
+    inference_seconds: float,
+) -> dict:
+    return PEMFCPosteriorResult(
+        time=time.tolist(),
+        time_label=context.time_label,
+        time_unit=context.time_unit,
+        parameter_names=list(bundle.parameter_names),
+        parameters=bundle.parameters,
+        statistics=statistics,
+        snapshots=[snapshots[index] for index in params.posterior_snapshot_indices],
+        metadata=PEMFCPosteriorMetadata(
+            dataset_id=context.dataset_id,
+            dataset_title=context.dataset_title,
+            dataset_source=context.dataset_source,
+            model_id=bundle.model_id,
+            num_samples=params.num_samples,
+            seed=params.seed,
+            quantiles=params.quantiles,
+            common_latent_samples=params.common_latent_samples,
+            histogram_bins=params.histogram_bins,
+            posterior_snapshot_indices=params.posterior_snapshot_indices,
+            inference_seconds=inference_seconds,
+            valid_time_steps=len(time),
+            dropped_time_step_indices=context.dropped_time_step_indices,
+            out_of_range_value_count=context.out_of_range_value_count,
+        ),
+    ).as_vipr_payload()
+
+
 @discover_predictor("pemfc_posterior", PEMFCPosteriorPredictorParams)
 class PEMFCPosteriorPredictor(PredictorHandler):
     """Reconstruct posterior summaries for all valid sensor time steps."""
@@ -64,180 +134,56 @@ class PEMFCPosteriorPredictor(PredictorHandler):
         label = "pemfc_posterior"
 
     def _predict(self, dataset, model, params):
+        # Validate the VIPR boundary and recover the aligned valid time axis.
         params = PEMFCPosteriorPredictorParams.model_validate(params)
-        model = as_pemfc_bundle(model)
-        context = PEMFCDatasetContext.model_validate(dataset.metadata)
-        if not context.conditions_scaled:
-            raise ValueError(
-                "PEMFC conditions are not scaled; enable PEMFCConditionPreprocessor"
-            )
-        if dataset.x.shape[1] != len(model.condition_names):
-            raise ValueError(
-                f"Model expects {len(model.condition_names)} conditions, "
-                f"DataSet provides {dataset.x.shape[1]}"
-            )
-
-        time = (
-            np.asarray(dataset.y[:, 0], dtype=np.float64)
-            if dataset.y is not None
-            else np.arange(dataset.batch_size, dtype=np.float64)
-        )
+        bundle = as_pemfc_bundle(model)
+        context, time = _validate_prediction_inputs(dataset, bundle, params)
         n_steps = dataset.batch_size
-        n_parameters = len(model.parameter_names)
-        invalid_snapshot_indices = [
-            index
-            for index in params.posterior_snapshot_indices
-            if index >= n_steps
-        ]
-        if invalid_snapshot_indices:
-            raise ValueError(
-                "posterior_snapshot_indices are outside the valid, preprocessed "
-                f"time axis of length {n_steps}: {invalid_snapshot_indices}"
-            )
-        quantile_keys = [quantile_key(value) for value in params.quantiles]
-        collected = {
-            name: {
-                "mean": [],
-                "std": [],
-                "min": [],
-                "max": [],
-                "quantiles": {key: [] for key in quantile_keys},
-            }
-            for name in model.parameter_names
-        }
+
+        # Keep the random sampling state consistent across time batches.
+        sampler = PosteriorSampler(
+            bundle,
+            num_samples=params.num_samples,
+            seed=params.seed,
+            common_latent_samples=params.common_latent_samples,
+        )
+        # Reduce each sample batch to parameter-wise statistical time series.
+        accumulator = PosteriorAccumulator(
+            bundle.parameter_names,
+            params.quantiles,
+        )
         snapshots: dict[int, dict] = {}
 
-        generator = torch.Generator(device=model.device)
-        generator.manual_seed(params.seed)
-        shared_latent = None
-        if params.common_latent_samples:
-            shared_latent = torch.randn(
-                params.num_samples,
-                n_parameters,
-                generator=generator,
-                device=model.device,
-            )
-
         started = perf_counter()
-        with torch.inference_mode():
-            for start in range(0, n_steps, params.time_batch_size):
-                stop = min(start + params.time_batch_size, n_steps)
-                # DataSet arrays are intentionally read-only. Copy the small
-                # chunk before creating a tensor to avoid undefined behaviour
-                # warnings from torch.as_tensor on non-writable NumPy memory.
-                conditions = torch.tensor(
-                    np.array(dataset.x[start:stop], dtype=np.float32, copy=True),
-                    dtype=torch.float32,
-                    device=model.device,
-                )
-                batch_size = conditions.shape[0]
-                repeated_conditions = (
-                    conditions[:, None, :]
-                    .expand(batch_size, params.num_samples, -1)
-                    .reshape(-1, conditions.shape[-1])
-                )
-                if shared_latent is not None:
-                    latent = (
-                        shared_latent[None, :, :]
-                        .expand(batch_size, -1, -1)
-                        .reshape(-1, n_parameters)
+        # Batch time steps to limit the memory used by posterior samples.
+        for start in range(0, n_steps, params.time_batch_size):
+            stop = min(start + params.time_batch_size, n_steps)
+            # Run the inverse cINN to sample operating-parameter posteriors.
+            samples = sampler.samples_for(dataset.x[start:stop])
+            accumulator.add(samples)
+
+            # Retain empirical distributions only for requested time steps.
+            for index in params.posterior_snapshot_indices:
+                if start <= index < stop:
+                    snapshots[index] = build_posterior_snapshot(
+                        samples[index - start],
+                        valid_time_step_index=index,
+                        time=time[index],
+                        parameter_names=bundle.parameter_names,
+                        bins=params.histogram_bins,
                     )
-                else:
-                    latent = torch.randn(
-                        batch_size * params.num_samples,
-                        n_parameters,
-                        generator=generator,
-                        device=model.device,
-                    )
-
-                scaled_samples = model.model.inverse(latent, repeated_conditions)
-                samples = model.parameter_scaler.inverse_transform_tensor(
-                    scaled_samples
-                )
-                samples = samples.reshape(batch_size, params.num_samples, n_parameters)
-                if not torch.all(torch.isfinite(samples)):
-                    raise ValueError("PEMFC cINN produced non-finite posterior samples")
-
-                means = samples.mean(dim=1)
-                stds = samples.std(dim=1, unbiased=False)
-                minima = samples.amin(dim=1)
-                maxima = samples.amax(dim=1)
-                quantiles = torch.quantile(
-                    samples,
-                    torch.as_tensor(params.quantiles, device=model.device),
-                    dim=1,
-                )
-
-                requested_in_chunk = [
-                    index
-                    for index in params.posterior_snapshot_indices
-                    if start <= index < stop
-                ]
-                if requested_in_chunk:
-                    snapshot_samples = samples.detach().cpu().numpy()
-                    for index in requested_in_chunk:
-                        local_index = index - start
-                        histograms = {}
-                        for parameter_index, name in enumerate(model.parameter_names):
-                            counts, bin_edges = np.histogram(
-                                snapshot_samples[local_index, :, parameter_index],
-                                bins=params.histogram_bins,
-                            )
-                            bin_widths = np.diff(bin_edges)
-                            density = counts.astype(np.float64) / (
-                                counts.sum() * bin_widths
-                            )
-                            histograms[name] = {
-                                "bin_edges": bin_edges.tolist(),
-                                "density": density.tolist(),
-                                "counts": counts.tolist(),
-                            }
-                        snapshots[index] = {
-                            "valid_time_step_index": index,
-                            "time": float(time[index]),
-                            "histograms": histograms,
-                        }
-
-                for parameter_index, name in enumerate(model.parameter_names):
-                    entry = collected[name]
-                    entry["mean"].extend(means[:, parameter_index].cpu().tolist())
-                    entry["std"].extend(stds[:, parameter_index].cpu().tolist())
-                    entry["min"].extend(minima[:, parameter_index].cpu().tolist())
-                    entry["max"].extend(maxima[:, parameter_index].cpu().tolist())
-                    for quantile_index, key in enumerate(quantile_keys):
-                        entry["quantiles"][key].extend(
-                            quantiles[quantile_index, :, parameter_index].cpu().tolist()
-                        )
 
         elapsed = perf_counter() - started
         self.app.log.info(
             f"Reconstructed {n_steps} PEMFC time steps with {params.num_samples} "
             f"posterior samples each in {elapsed:.3f} s"
         )
-        return PEMFCPosteriorResult(
-            time=time.tolist(),
-            time_label=context.time_label,
-            time_unit=context.time_unit,
-            parameter_names=list(model.parameter_names),
-            parameters=model.parameters,
-            statistics=collected,
-            snapshots=[
-                snapshots[index] for index in params.posterior_snapshot_indices
-            ],
-            metadata=PEMFCPosteriorMetadata(
-                dataset_id=context.dataset_id,
-                dataset_title=context.dataset_title,
-                dataset_source=context.dataset_source,
-                model_id=model.model_id,
-                num_samples=params.num_samples,
-                seed=params.seed,
-                quantiles=params.quantiles,
-                common_latent_samples=params.common_latent_samples,
-                histogram_bins=params.histogram_bins,
-                posterior_snapshot_indices=params.posterior_snapshot_indices,
-                inference_seconds=elapsed,
-                valid_time_steps=n_steps,
-                dropped_time_step_indices=context.dropped_time_step_indices,
-                out_of_range_value_count=context.out_of_range_value_count,
-            ),
-        ).as_vipr_payload()
+        return _build_posterior_result(
+            context=context,
+            bundle=bundle,
+            params=params,
+            time=time,
+            statistics=accumulator.result(),
+            snapshots=snapshots,
+            inference_seconds=elapsed,
+        )
