@@ -12,8 +12,8 @@ license = "LGPL-3.0-or-later"
 license-files = ["LICENSE.txt", "NOTICE.md", "AUTHORS.md"]
 authors = [
     {name = "Sascha Creutzburg", email = "sascha.creutzburg@saxony.ai"},
-    {name = "Nico Mothes", email = "nico.mothes@saxony.ai"},
     {name = "Rico Löser", email = "Rico.Loeser@iwu.fraunhofer.de"},
+    {name = "Nico Mothes", email = "nico.mothes@saxony.ai"},
 ]
 keywords = ["vipr", "pemfc", "fuel-cell", "inverse-problems", "cinn"]
 classifiers = [

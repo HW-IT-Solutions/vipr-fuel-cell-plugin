@@ -1,5 +1,7 @@
 # VIPR Fuel Cell Plugin
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22078852.svg)](https://doi.org/10.5281/zenodo.22078852)
+
 This plugin reconstructs operating parameters of a polymer electrolyte membrane
 fuel cell (PEMFC) from measurable or derived quantities. A conditional
 invertible neural network (cINN) returns a posterior distribution for each
@@ -86,9 +88,9 @@ result hook used by the plugin.
 
 ## Acknowledgements
 
-The PEMFC use case was developed with contributions from Fraunhofer Institute
-for Machine Tools and Forming Technology IWU and Helm & Walter IT-Solutions
-GmbH (SaxonyAI).
+The VIPR Fuel Cell Plugin was developed by Helm & Walter IT-Solutions GmbH
+(SaxonyAI) in collaboration with the Fraunhofer Institute for Machine Tools and
+Forming Technology IWU.
 
 ## License
 

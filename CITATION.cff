@@ -5,21 +5,23 @@ message: >-
 type: software
 title: VIPR Fuel Cell Plugin
 version: "0.1.0"
+doi: 10.5281/zenodo.22078852
 authors:
   - family-names: Creutzburg
     given-names: Sascha
     email: sascha.creutzburg@saxony.ai
     affiliation: Helm & Walter IT-Solutions GmbH (SaxonyAI)
     orcid: https://orcid.org/0000-0002-4391-4270
-  - family-names: Mothes
-    given-names: Nico
-    email: nico.mothes@saxony.ai
-    affiliation: Helm & Walter IT-Solutions GmbH (SaxonyAI)
   - family-names: Löser
     given-names: Rico
     email: Rico.Loeser@iwu.fraunhofer.de
     affiliation: >-
       Fraunhofer Institute for Machine Tools and Forming Technology IWU
+    orcid: https://orcid.org/0000-0003-1524-6823
+  - family-names: Mothes
+    given-names: Nico
+    email: nico.mothes@saxony.ai
+    affiliation: Helm & Walter IT-Solutions GmbH (SaxonyAI)
 repository-code: https://github.com/HW-IT-Solutions/vipr-fuel-cell-plugin
 license: LGPL-3.0-or-later
 keywords:
