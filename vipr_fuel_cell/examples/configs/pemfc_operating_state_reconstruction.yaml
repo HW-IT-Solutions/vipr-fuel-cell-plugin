@@ -33,8 +33,7 @@ vipr:
         quantiles: [0.025, 0.5, 0.975]
         time_batch_size: 8
         common_latent_samples: true
-        # One illustrative stable operating point before the pressure change.
-        # Index 40 maps to simulation step 41 after dropping the initial row.
+        # Processed index 40 corresponds to simulation step 41 shown in the example.
         posterior_snapshot_indices: [40]
         histogram_bins: 30
     postprocess:
