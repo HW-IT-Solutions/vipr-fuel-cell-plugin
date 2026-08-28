@@ -1,4 +1,5 @@
 include models/README.md
+include models/LICENSE.md
 include scripts/prepare_sensor_profile.py
 include tests/__init__.py
 include tests/helpers.py

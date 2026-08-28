@@ -1,8 +1,9 @@
 # Bundled resources
 
 The bundled sensor profile supports the published PEMFC operating-state
-reconstruction example. Its final redistribution terms must be confirmed before
-this repository is made public.
+reconstruction example. It is included in this release with permission from the
+Fraunhofer Institute for Machine Tools and Forming Technology IWU. No separate
+reuse license is granted for this research artifact unless explicitly stated.
 
 - `datasets/operating_profile/profile.yaml` maps stable condition IDs to columns
   in the adjacent `sensor_data.csv` and describes the profile and time axis.

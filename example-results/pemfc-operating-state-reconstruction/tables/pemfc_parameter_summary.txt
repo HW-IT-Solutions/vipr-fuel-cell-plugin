@@ -1,0 +1,17 @@
+======================================================================
+TABLE: Reconstructed PEMFC operating parameters
+======================================================================
+
+parameter                         | parameter_id                      | unit    | mean                 | minimum              | maximum              | mean_posterior_std    
+----------------------------------+-----------------------------------+---------+----------------------+----------------------+----------------------+-----------------------
+Cell current density              | cell_current_density              | A/cm²   | 1.1364579363663991   | 1.1114377975463867   | 1.1680413484573364   | 0.026443378378947575  
+Anode inlet relative humidity     | anode_inlet_relative_humidity     | 1       | 0.7470881595214208   | 0.7340626120567322   | 0.8008096814155579   | 0.09564534525076548   
+Cathode inlet relative humidity   | cathode_inlet_relative_humidity   | 1       | 0.7746099942922592   | 0.726113498210907    | 0.7824814915657043   | 0.09297306088109811   
+Anode inlet temperature           | anode_inlet_temperature           | K       | 335.0599761962891    | 308.33575439453125   | 344.1111755371094    | 2.0377132419745125    
+Cathode inlet temperature         | cathode_inlet_temperature         | K       | 342.63587239583336   | 342.5013732910156    | 342.84918212890625   | 0.29197600920995076   
+Anode inlet pressure              | anode_inlet_pressure              | atm     | 1.777643616994222    | 1.619260549545288    | 2.00199294090271     | 0.04884724155068398   
+Cathode inlet pressure            | cathode_inlet_pressure            | atm     | 1.6688364843527477   | 1.6338582038879395   | 1.7660338878631592   | 0.09299740654726824   
+Hydrogen stoichiometry            | hydrogen_stoichiometry            | 1       | 1.238061752319336    | 1.1398203372955322   | 1.375701904296875    | 0.028833066603789727  
+Oxygen stoichiometry              | oxygen_stoichiometry              | 1       | 1.9179715486367543   | 1.8711026906967163   | 1.9549999237060547   | 0.04339950323104858   
+
+======================================================================

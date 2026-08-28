@@ -30,6 +30,10 @@ dependencies = [
     "torch>=2.1",
 ]
 
+[project.urls]
+Repository = "https://github.com/HW-IT-Solutions/vipr-fuel-cell-plugin"
+"Archived release" = "https://doi.org/10.5281/zenodo.22078852"
+
 [project.optional-dependencies]
 test = ["pytest>=8.0.0"]
 conversion = ["h5py>=3.9"]

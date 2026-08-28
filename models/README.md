@@ -26,6 +26,8 @@ git lfs pull
 The plugin reads `model.yaml` from this directory and verifies the other three
 files against its SHA-256 values before loading them. The manifest also defines
 stable IDs, labels, and units for all conditions and reconstructed targets;
-tensor names, order, and dimensions come from the checkpoint itself. The
-redistribution terms of the model bundle must be confirmed before the
-repository is made public.
+tensor names, order, and dimensions come from the checkpoint itself.
+
+The model bundle is licensed under the Creative Commons
+Attribution-ShareAlike 4.0 International license (`CC BY-SA 4.0`). See
+[`LICENSE.md`](LICENSE.md) for attribution and license details.

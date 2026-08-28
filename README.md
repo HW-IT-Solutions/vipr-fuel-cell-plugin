@@ -17,17 +17,18 @@ cells," *International Journal of Hydrogen Energy* 250 (2026) 155929.
 
 ## Quick start
 
-Python 3.10 or newer is required. Extract the plugin release archive and place
-it next to a checkout of VIPR Core:
+Python 3.10 or newer and [Git LFS](https://git-lfs.com/) are required for a Git
+checkout. Clone VIPR Core and the plugin into the same parent directory:
 
 ```bash
+git lfs install
 git clone https://codebase.helmholtz.cloud/vipr/vipr-core.git
+git clone https://github.com/HW-IT-Solutions/vipr-fuel-cell-plugin.git
 ```
 
-The parent directory should then contain `vipr-core/` and
-`vipr-fuel-cell-plugin/`. The release archive includes the complete model
-checkpoint. Git LFS is only required when obtaining the plugin from a Git
-repository instead of the release archive.
+Alternatively, the versioned Zenodo release archive includes the complete model
+checkpoint and does not require Git LFS. In both cases, the parent directory
+should contain `vipr-core/` and `vipr-fuel-cell-plugin/`.
 
 Install both packages:
 
@@ -104,6 +105,6 @@ The source code is licensed under the GNU Lesser General Public License v3.0 or
 later (`LGPL-3.0-or-later`); see [`LICENSE.txt`](LICENSE.txt). The project
 authors are listed in [`AUTHORS.md`](AUTHORS.md).
 
-The trained model, bundled research data, and derived example results may be
-subject to additional rights and approvals described in
-[`NOTICE.md`](NOTICE.md).
+The model bundle is licensed under CC BY-SA 4.0. The bundled sensor profile and
+derived example results are included with permission from the Fraunhofer IWU.
+See [`NOTICE.md`](NOTICE.md) for the applicable terms.
