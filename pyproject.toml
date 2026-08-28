@@ -57,6 +57,6 @@ vipr_fuel_cell = [
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 markers = [
-    "integration: requires the separately provisioned published model artifacts",
+    "integration: requires the complete model bundle",
 ]
 addopts = "-v --tb=short -m 'not integration'"

@@ -22,7 +22,6 @@ authors:
     given-names: Nico
     email: nico.mothes@saxony.ai
     affiliation: Helm & Walter IT-Solutions GmbH (SaxonyAI)
-repository-code: https://github.com/HW-IT-Solutions/vipr-fuel-cell-plugin
 license: LGPL-3.0-or-later
 keywords:
   - VIPR
@@ -74,6 +73,8 @@ references:
         given-names: Robert
       - family-names: Koutsioumpas
         given-names: Alexandros
+      - family-names: Löser
+        given-names: Rico
       - family-names: Munteanu
         given-names: Valentin
       - family-names: Pandit

@@ -11,9 +11,12 @@ models/test_case_1/
 └── scaler_y.json
 ```
 
-The checkpoint is managed by Git LFS; the small scaler files are regular Git
-objects. Install Git LFS before cloning the repository. If the repository was
-already cloned, fetch the checkpoint with:
+The versioned release archive contains the complete checkpoint. No Git LFS
+installation is required when using that archive.
+
+In a Git checkout, the checkpoint is managed by Git LFS while the small scaler
+files are regular Git objects. Install Git LFS before cloning the repository.
+If the repository was already cloned, fetch the checkpoint with:
 
 ```bash
 git lfs install

@@ -2,7 +2,8 @@
 
 ## Run the packaged example
 
-After installing VIPR Core and this source checkout in editable mode, run:
+After installing VIPR Core and the extracted plugin release in editable mode,
+run:
 
 ```bash
 vipr --config \
@@ -30,8 +31,9 @@ models/test_case_1/
 └── scaler_y.json
 ```
 
-The checkpoint is tracked with Git LFS. See [`models/README.md`](../models/README.md)
-for checkout and verification details.
+The release archive contains the complete checkpoint. Git LFS is only needed
+for a Git checkout. See [`models/README.md`](../models/README.md) for checkout
+and verification details.
 
 The example declares `model_dir: ../../../models/test_case_1`. A relative
 `model_dir` is resolved only from the directory containing the active VIPR
